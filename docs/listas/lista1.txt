@@ -1,0 +1,44 @@
+Curso de Engenharia Mecânica/Civil/Produção
+Profa. Danielle Gonçalves Teixeira
+4ª Lista de Cálculo Numérico
+
+---------------------------------------------------------------------------------------------------------------
+1- Utilizando o método da bisseção, determine o zero da função f(x) = e                                 − 3x ,
+                                                                                                    x
+
+onde [a, b] = [1,2]. Após cada iteração, determine os erros absoluto e relativo
+(teste de parada). Considere o número máximo de iterações N = 20 e ε = 10 .
+                                                                                                           −5
+
+Utilize uma calculadora científica.
+
+2- Use o método da bisseção para obter a menor raiz positiva das equações que
+seguem com precisão de ε = 10 . Após cada iteração, determine os erros
+                                                -4
+
+absoluto e relativo (teste de parada). Considere o número máximo de iterações
+N = 20 . Utilize uma calculadora científica.
+    x
+(a)    − tgx = 0
+    2
+             ex
+(b) 2cosx =
+              2
+(c) x − 6 = 0
+     5
+
+
+3     -   Utilizando     o
+                       método da bisseção, determine o zero da função
+f(x) = x log x − 1 , onde [a,b] = [2,3]. Após cada iteração, determine os erros
+absoluto e relativo (teste de parada). Considere o número máximo de iterações
+N = 15 e ε = 5 x10−4 . Utilize uma calculadora científica.
+4     -   Utilizando     o    método       da    bisseção,       determine        o   zero     da       função
+f(x) = x − 9 x + 3 , onde [a,b] = [0,1]. Após cada iteração, determine os erros
+             3
+
+absoluto e relativo (teste de parada). Considere o número máximo de iterações
+N = 15 e ε = 10−3 . Utilize uma calculadora científica.
+5 – Use o método da falsa posição para determinar os zeros das funções das
+questões de 1 a 4.
+

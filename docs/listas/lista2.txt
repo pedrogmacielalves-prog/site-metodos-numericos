@@ -1,0 +1,86 @@
+Curso de Engenharia Mecânica/Civil/Produção
+Profa. Danielle Gonçalves Teixeira
+5ª Lista de Cálculo Numérico
+
+--------------------------------------------------------------------------------------------------------------
+1 – Utilizando o método De Newton-Raphson, determine o zero da função
+f(x) = e x − 3x , onde x 0 = 2 . Após cada iteração, determine os erros absoluto
+e relativo (teste de parada). Considere o número máximo de iterações N = 10 e
+ε = 10−7 . Utilize uma calculadora científica.
+
+2 – Use o método de Newton-Raphson para obter a menor raiz positiva das
+equações que seguem com precisão de ε = 10 . Após cada iteração, determine
+                                                                 -4
+
+os erros absoluto e relativo (teste de parada). Considere o número máximo de
+iterações N = 10 . Utilize uma calculadora científica.
+    x
+(a)    − tgx = 0
+    2
+             ex
+(b) 2cosx =
+              2
+(c) x − 6 = 0
+     5
+
+
+
+3 – Com o uso da calculadora, aplique o método de Newton-Raphson à equação
+
+                  x 3 − 2x 2 − 3x + 10 = 0                       com           x 0 = 1,9 .
+
+
+4 – Seja a equação f(x) = x − xlnx = 0 . Utilize o método de Newton-Raphson
+                                                                                      e N = 10 . Utilize
+                                                                                 −5
+para a determinar a raiz desta equação. Considere ε = 10
+uma calculadora científica.
+
+
+5 – Considere a equação não linear dada por
+
+                                             1 + senx = x .
+
+(a) Mostre que existe uma raiz real, denotada por x , no intervalo (1,2) .
+(b) Considerando o intervalo do item anterior, estime quantas iterações seriam
+necessárias para aproximar x , com precisão de ε = 0,01 , utilizando o método da
+bisseção.
+(c) Utilizando o método de Newton-Raphson, obtenha uma aproximação para x
+com precisão de ε = 0,01 .
+
+
+6 – Faça um programa que determine a raiz de uma equação através do método
+de Newton-Raphson. Refaça os exercícios 1, 2, 3, 4 e 5 utilizando este programa.
+
+
+7 – Refaça os exercícios 7 e 8 fazendo a substituição da derivada no método de
+Newton–Raphson por
+
+                                      f(x k ) − f(x k −1 )
+                          f ' (x)                         .
+                                         x k − x k −1
+
+Considere x 0 = 2 e x 1 = 3 , ε = 10
+                                         −5
+                                              e   N = 10 . Este é conhecido como o
+método da secante.
+
+
+8 – Faça um programa que determine a raiz de uma equação através do método
+da secante. Refaça os exercícios 1, 2, 3, 4 e 5 utilizando este programa.
+
+
+9 – Determinar, usando o método de Newton-Raphson, a menor raiz positiva da
+equação:
+                                4cos x − e x = 0
+onde x 0 = 1 e ε = 10 .
+                    −2
+
+
+
+
+10 – Determinar, usando o método da Secante, a menor raiz positiva da equação:
+                                      x − 5e− x = 0
+onde x 0 = 1 e x 0 = 2 e ε = 10 .
+                               −2
+

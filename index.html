@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Métodos Numéricos Interativos</title>
+  <script>/* aplica o tema salvo antes da pintura (escuro é o padrão) */(function(){try{var t=new URLSearchParams(location.search).get('tema')||localStorage.getItem('tema');if(t==='light')document.documentElement.dataset.theme='light';}catch(e){}})();</script>
+  <link rel="stylesheet" href="design/tokens.css">
+  <link rel="stylesheet" href="design/componentes.css">
+  <link rel="stylesheet" href="css/estilo.css">
+</head>
+<body>
+<header class="topo-site">
+  <h1>Métodos Numéricos Interativos</h1>
+  <nav class="abas" role="tablist" aria-label="Métodos">
+    <button class="aba" role="tab" id="aba-bisseccao" aria-controls="painel-bisseccao" data-aba="bisseccao" aria-selected="true">Bissecção</button>
+    <button class="aba" role="tab" id="aba-newton" aria-controls="painel-newton" data-aba="newton" aria-selected="false" tabindex="-1">Newton-Raphson</button>
+    <button class="aba" role="tab" id="aba-gauss" aria-controls="painel-gauss" data-aba="gauss" aria-selected="false" tabindex="-1" aria-label="Eliminação de Gauss"><span class="aba__longo">Eliminação de </span>Gauss</button>
+  </nav>
+  <button type="button" class="btn btn--secundario" id="alternar-tema" aria-pressed="false" aria-label="Tema claro"><svg class="icone btn-tema-icone" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="10" cy="10" r="3.5"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.3 4.3l1.4 1.4M14.3 14.3l1.4 1.4M4.3 15.7l1.4-1.4M14.3 5.7l1.4-1.4"/></svg><span class="btn-tema-texto">Tema claro</span></button>
+</header>
+<main>
+  <!-- BISSECÇÃO -->
+  <section class="painel metodo-bisseccao" id="painel-bisseccao" role="tabpanel" aria-labelledby="aba-bisseccao">
+    <div class="layout">
+      <form class="card card--metodo metodo-bisseccao form-metodo" id="form-bisseccao" novalidate>
+        <h2>Parâmetros</h2>
+        <label class="campo"><span class="campo__rotulo">f(x)</span><input class="input" type="text" name="f" value="x^3 - x - 2" spellcheck="false" autocomplete="off"></label>
+        <p class="campo__ajuda">Operadores + − * / ^; funções sin, cos, tan, exp, ln (natural), log (base 10), sqrt, abs; constantes pi, e. Decimal com ponto ou vírgula (1.5 ou 1,5).</p>
+        <div class="linha-campos">
+          <label class="campo"><span class="campo__rotulo">a</span><input class="input input--num" type="text" inputmode="decimal" name="a" value="1"></label>
+          <label class="campo"><span class="campo__rotulo">b</span><input class="input input--num" type="text" inputmode="decimal" name="b" value="2"></label>
+        </div>
+        <fieldset class="campo campo-seg"><legend class="campo__rotulo">Critério de parada</legend><div class="segmentado" id="seg-criterio-bisseccao" role="radiogroup"><input type="radio" id="crit-bisseccao-rel" name="criterio" value="relativo" checked><label for="crit-bisseccao-rel">Relativo (ε)</label><input type="radio" id="crit-bisseccao-abs" name="criterio" value="absoluto"><label for="crit-bisseccao-abs">Absoluto (tol)</label></div></fieldset>
+        <div class="linha-campos">
+          <label class="campo"><span class="campo__rotulo rotulo-tol">ε</span><input class="input input--num" type="text" inputmode="decimal" name="tol" value="0,01" aria-describedby="criterio-bisseccao"></label>
+          <label class="campo"><span class="campo__rotulo">Máx. iterações</span><input class="input input--num" type="text" inputmode="numeric" name="maxIter" value="50"></label>
+        </div>
+        <p class="campo__ajuda criterio" id="criterio-bisseccao">Critério de parada: <strong>|cₖ − cₖ₋₁|/|cₖ| &lt; ε</strong> (variação do ponto médio relativa a |c|), ou f(c) = 0.</p>
+        <div class="acoes"><button class="btn btn--primario" type="submit">Calcular</button></div>
+        <div class="mensagens" id="msg-bisseccao" role="status" aria-live="polite"></div>
+      </form>
+      <div class="coluna">
+        <div class="card">
+          <div class="cabeca-cartao"><h2>Gráfico</h2><div class="acoes-metodo"><button type="button" class="btn btn--secundario" id="codigo-bisseccao" data-modo="codigo" aria-haspopup="dialog" aria-controls="gaveta-codigo" aria-expanded="false"><svg class="icone" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m6.5 6-4 4 4 4"/><path d="m13.5 6 4 4-4 4"/><path d="m11.2 3.5-2.4 13"/></svg> Ver código</button><button type="button" class="btn btn--secundario btn--com-selo" id="avisos-bisseccao" data-modo="avisos" aria-haspopup="dialog" aria-controls="gaveta-codigo" aria-expanded="false" aria-label="Avisos"><svg class="icone" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M8.6 3.2 1.9 15a1.6 1.6 0 0 0 1.4 2.4h13.4a1.6 1.6 0 0 0 1.4-2.4L11.4 3.2a1.6 1.6 0 0 0-2.8 0Z"/><path d="M10 8v3.5"/><path d="M10 14.3h.01"/></svg> Avisos</button></div></div>
+          <canvas class="grafico-canvas" id="canvas-bisseccao" role="img" aria-label="Gráfico de f(x) com o intervalo [a, b] e o ponto médio c"></canvas>
+          <div class="grafico__legenda">
+            <span class="legenda__item"><span class="legenda__amostra amostra-bloco" style="background:var(--canvas-intervalo-preenchimento);border-color:var(--canvas-intervalo-borda)"></span>intervalo [a, b]</span>
+            <span class="legenda__item"><span class="legenda__amostra amostra-bloco" style="border-radius:50%;background:var(--canvas-ponto-medio);border-color:var(--canvas-ponto-medio)"></span>ponto médio c</span>
+            <span class="legenda__item"><span class="legenda__amostra amostra-bloco" style="border-radius:50%;border-width:2px;background:var(--canvas-fundo);border-color:var(--canvas-intervalo-borda)"></span>extremos a, b</span>
+            <span class="legenda__item"><span class="legenda__amostra amostra-bloco amostra-raiz" style="background:var(--canvas-raiz)"></span>raiz final</span>
+            <span class="legenda__item"><span class="legenda__amostra" style="color:var(--canvas-funcao)"></span>f(x)</span>
+            <span class="legenda__item">(+) / (−) = sinal de f</span>
+          </div>
+          <p class="descricao-passo" id="desc-bisseccao" aria-live="polite"></p>
+        </div>
+        <div class="card"><div id="player-bisseccao"></div></div>
+        <div class="tabela-wrap tabela-rolagem" id="rolagem-tab-bisseccao">
+          <table class="tabela tabela-professora"><caption>Iterações (clique numa linha para ir ao passo)</caption><thead><tr><th scope="col" class="th-formula">k</th><th scope="col" class="th-formula">a</th><th scope="col" class="th-formula">b</th><th scope="col" class="th-formula">xᵢ</th><th scope="col" class="th-formula">f(a)</th><th scope="col" class="th-formula">f(b)</th><th scope="col" class="th-formula">f(xᵢ)</th><th scope="col" class="th-erro th-formula">|xᵢ₊₁ − xᵢ|/|xᵢ₊₁|</th></tr></thead><tbody id="tabela-bisseccao"></tbody></table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- NEWTON -->
+  <section class="painel metodo-newton" id="painel-newton" role="tabpanel" aria-labelledby="aba-newton" hidden>
+    <div class="layout">
+      <form class="card card--metodo metodo-newton form-metodo" id="form-newton" novalidate>
+        <h2>Parâmetros</h2>
+        <label class="campo"><span class="campo__rotulo">f(x)</span><input class="input" type="text" name="f" value="x^2 - 2" spellcheck="false" autocomplete="off"></label>
+        <label class="campo"><span class="campo__rotulo">f'(x) (opcional)</span><input class="input" type="text" name="df" value="" placeholder="vazio = automática" spellcheck="false" autocomplete="off"></label>
+        <p class="campo__ajuda">Se f'(x) ficar vazio, a derivada é calculada simbolicamente a partir de f(x) e exibida abaixo. ln = log natural, log = base 10.</p>
+        <label class="campo"><span class="campo__rotulo">x₀</span><input class="input input--num" type="text" inputmode="decimal" name="x0" value="3"></label>
+        <fieldset class="campo campo-seg"><legend class="campo__rotulo">Critério de parada</legend><div class="segmentado" id="seg-criterio-newton" role="radiogroup"><input type="radio" id="crit-newton-rel" name="criterio" value="relativo" checked><label for="crit-newton-rel">Relativo (ε)</label><input type="radio" id="crit-newton-abs" name="criterio" value="absoluto"><label for="crit-newton-abs">Absoluto (tol)</label></div></fieldset>
+        <div class="linha-campos">
+          <label class="campo"><span class="campo__rotulo rotulo-tol">ε</span><input class="input input--num" type="text" inputmode="decimal" name="tol" value="0,01" aria-describedby="criterio-newton"></label>
+          <label class="campo"><span class="campo__rotulo">Máx. iterações</span><input class="input input--num" type="text" inputmode="numeric" name="maxIter" value="30"></label>
+        </div>
+        <p class="campo__ajuda criterio" id="criterio-newton">Critério de parada: <strong>|xₖ₊₁ − xₖ|/|xₖ₊₁| &lt; ε</strong> (passo relativo a |x|), ou f(xₖ) = 0.</p>
+        <div class="acoes"><button class="btn btn--primario" type="submit">Calcular</button></div>
+        <div class="mensagens" id="msg-newton" role="status" aria-live="polite"></div>
+      </form>
+      <div class="coluna">
+        <div class="card">
+          <div class="cabeca-cartao"><h2>Gráfico</h2><div class="acoes"><button type="button" class="btn btn--secundario" id="enquadrar-newton" aria-pressed="false" title="Alterna entre seguir o passo atual e ver todos os iterados">Ver tudo</button><div class="acoes-metodo"><button type="button" class="btn btn--secundario" id="codigo-newton" data-modo="codigo" aria-haspopup="dialog" aria-controls="gaveta-codigo" aria-expanded="false"><svg class="icone" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m6.5 6-4 4 4 4"/><path d="m13.5 6 4 4-4 4"/><path d="m11.2 3.5-2.4 13"/></svg> Ver código</button><button type="button" class="btn btn--secundario btn--com-selo" id="avisos-newton" data-modo="avisos" aria-haspopup="dialog" aria-controls="gaveta-codigo" aria-expanded="false" aria-label="Avisos"><svg class="icone" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M8.6 3.2 1.9 15a1.6 1.6 0 0 0 1.4 2.4h13.4a1.6 1.6 0 0 0 1.4-2.4L11.4 3.2a1.6 1.6 0 0 0-2.8 0Z"/><path d="M10 8v3.5"/><path d="M10 14.3h.01"/></svg> Avisos</button></div></div></div>
+          <canvas class="grafico-canvas" id="canvas-newton" role="img" aria-label="Gráfico de f(x) com a reta tangente em x_k"></canvas>
+          <div class="grafico__legenda">
+            <span class="legenda__item"><span class="legenda__amostra" style="color:var(--canvas-funcao)"></span>f(x)</span>
+            <span class="legenda__item"><span class="legenda__amostra" style="color:var(--canvas-tangente)"></span>tangente em xₖ</span>
+            <span class="legenda__item"><span class="legenda__amostra amostra-bloco amostra-losango" style="background:var(--canvas-raiz);border-color:var(--canvas-raiz)"></span>xₖ₊₁ (cruza o eixo x)</span>
+            <span class="legenda__item"><span class="legenda__amostra amostra-bloco amostra-raiz" style="background:var(--canvas-raiz)"></span>raiz final</span>
+          </div>
+          <p class="descricao-passo" id="desc-newton" aria-live="polite"></p>
+        </div>
+        <div class="card"><div id="player-newton"></div></div>
+        <div class="tabela-wrap tabela-rolagem" id="rolagem-tab-newton">
+          <table class="tabela tabela-professora"><caption>Iterações (clique numa linha para ir ao passo)</caption><thead><tr><th scope="col" class="th-formula">k</th><th scope="col" class="th-formula">xᵢ</th><th scope="col" class="th-formula">f(xᵢ)</th><th scope="col" class="th-formula">f′(xᵢ)</th><th scope="col" class="th-formula">xᵢ₊₁</th><th scope="col" class="th-erro th-formula">|xᵢ₊₁ − xᵢ|/|xᵢ₊₁|</th></tr></thead><tbody id="tabela-newton"></tbody></table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- GAUSS -->
+  <section class="painel metodo-gauss" id="painel-gauss" role="tabpanel" aria-labelledby="aba-gauss" hidden>
+    <div class="layout">
+      <form class="card card--metodo metodo-gauss form-metodo" id="form-gauss" novalidate>
+        <div class="campo campo-n"><label class="campo__rotulo" for="n-gauss">Ordem n do sistema (2 a 100)</label>
+          <div class="seletor-n">
+            <button type="button" class="btn btn--secundario btn--icone" id="n-menos" aria-label="Diminuir n" aria-controls="n-gauss">−</button>
+            <input class="input input--num" id="n-gauss" type="number" name="n" min="2" max="100" step="1" inputmode="numeric" value="3">
+            <button type="button" class="btn btn--secundario btn--icone" id="n-mais" aria-label="Aumentar n" aria-controls="n-gauss">+</button>
+          </div>
+          <p class="campo__ajuda">Escolha n e depois preencha, cole ou gere a matriz A e o vetor b. Para n &gt; 10 não há grade de digitação (use Colar, Aleatório ou Exemplo) e a animação é por coluna.</p>
+        </div>
+        <fieldset class="campo campo-pivo campo-seg"><legend class="campo__rotulo">Pivoteamento</legend><div class="segmentado" id="pivoteamento-gauss" role="radiogroup" aria-describedby="ajuda-pivo"><input type="radio" id="piv-auto" name="pivoteamento" value="automatico" checked><label for="piv-auto">Automático</label><input type="radio" id="piv-sempre" name="pivoteamento" value="sempre"><label for="piv-sempre">Sempre</label><input type="radio" id="piv-nunca" name="pivoteamento" value="nunca"><label for="piv-nunca">Nunca</label></div><p class="campo__ajuda" id="ajuda-pivo"></p></fieldset>
+        <h2>Sistema</h2>
+        <div class="acoes acoes-entrada">
+          <button class="btn btn--secundario" type="button" id="colar-gauss" aria-expanded="false" aria-controls="painel-colar">Colar A e b</button>
+          <button class="btn btn--secundario" type="button" id="aleatorio-gauss">Aleatório</button>
+          <button class="btn btn--secundario" type="button" id="exemplo-gauss">Exemplo</button>
+          <button class="btn btn--secundario" type="button" id="limpar-gauss">Limpar</button>
+        </div>
+        <div class="painel-colar" id="painel-colar" hidden>
+          <fieldset class="modo-colar"><legend class="campo__rotulo">O que colar</legend>
+            <label class="campo-check"><input type="radio" name="modo-colar" value="separado" checked> A e b separados</label>
+            <label class="campo-check"><input type="radio" name="modo-colar" value="aumentada"> Aumentada [A | b]</label>
+          </fieldset>
+          <div id="colar-separado">
+            <label class="campo"><span class="campo__rotulo">Colar A (n linhas com n valores)</span>
+              <textarea class="input area-colar" id="texto-colar-a" rows="5" spellcheck="false"></textarea></label>
+            <label class="campo"><span class="campo__rotulo">Colar b (n valores em uma coluna ou em uma linha)</span>
+              <textarea class="input area-colar" id="texto-colar-b" rows="3" spellcheck="false"></textarea></label>
+          </div>
+          <label class="campo" id="colar-aumentada" hidden><span class="campo__rotulo">Colar aumentada [A | b] (n linhas com n + 1 valores; o último de cada linha vai para b)</span>
+            <textarea class="input area-colar" id="texto-colar" rows="6" spellcheck="false"></textarea></label>
+          <p class="campo__ajuda">Excel/CSV: separador tab, ; , ou espaço; decimal com vírgula ou ponto. Deixe A ou b vazio para manter o atual.</p>
+          <div class="acoes"><button class="btn btn--primario" type="button" id="carregar-colar">Carregar</button><button class="btn btn--secundario" type="button" id="cancelar-colar">Cancelar</button></div>
+          <div id="aviso-colar" class="aviso-colar" role="alert" hidden></div>
+        </div>
+        <div class="acoes">
+          <button class="btn btn--primario" type="submit">Calcular</button>
+        </div>
+        <div class="mensagens" id="msg-gauss" role="status" aria-live="polite"></div>
+      </form>
+      <div class="coluna">
+        <div class="card card-entrada" id="card-entrada">
+          <div class="cabeca-cartao"><h2>Entrada: matriz A e vetor b</h2></div>
+        <p class="resumo-grande" id="resumo-grande" hidden></p>
+        <p class="entrada-titulo entrada-titulo--fora" id="titulo-a">Matriz A (3×3)</p>
+        <div class="rolagem-x" id="rolagem-entrada">
+          <div class="entrada-ab">
+            <div class="entrada-bloco"><p class="entrada-titulo entrada-titulo--espaco" aria-hidden="true">&nbsp;</p>
+              <div class="entrada-matriz" id="entrada-matriz" role="group" aria-labelledby="titulo-a"></div></div>
+            <div class="entrada-bloco entrada-bloco--b"><p class="entrada-titulo" id="titulo-b">Vetor b</p>
+              <div class="entrada-matriz entrada-b" id="entrada-b" role="group" aria-labelledby="titulo-b"></div></div>
+          </div>
+        </div>
+        <p class="campo__ajuda dica-rolagem" id="dica-entrada" hidden>↔ Role horizontalmente para ver todas as colunas.</p>
+        </div>
+        <div class="card">
+          <div class="cabeca-cartao"><h2>Matriz</h2><div class="acoes-metodo"><button type="button" class="btn btn--secundario" id="codigo-gauss" data-modo="codigo" aria-haspopup="dialog" aria-controls="gaveta-codigo" aria-expanded="false"><svg class="icone" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m6.5 6-4 4 4 4"/><path d="m13.5 6 4 4-4 4"/><path d="m11.2 3.5-2.4 13"/></svg> Ver código</button><button type="button" class="btn btn--secundario btn--com-selo" id="avisos-gauss" data-modo="avisos" aria-haspopup="dialog" aria-controls="gaveta-codigo" aria-expanded="false" aria-label="Avisos"><svg class="icone" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M8.6 3.2 1.9 15a1.6 1.6 0 0 0 1.4 2.4h13.4a1.6 1.6 0 0 0 1.4-2.4L11.4 3.2a1.6 1.6 0 0 0-2.8 0Z"/><path d="M10 8v3.5"/><path d="M10 14.3h.01"/></svg> Avisos</button></div></div>
+          <p class="pivo-gauss" id="pivo-gauss" aria-live="polite"></p>
+          <div id="bloco-matriz">
+            <div class="rolagem-x" id="rolagem-matriz"><div class="matriz-vis" id="matriz-gauss" aria-live="off"></div></div>
+            <p class="campo__ajuda dica-rolagem" id="dica-matriz" hidden>↔ Role horizontalmente para ver todas as colunas.</p>
+          </div>
+          <div id="bloco-mapa" class="bloco-mapa" hidden>
+            <div class="mapa-wrap">
+              <canvas class="mapa-gauss" id="mapa-gauss" tabindex="0" role="img" aria-label="Mapa de cores da matriz aumentada. Use as setas para percorrer as células, + e − para zoom, 0 para restaurar." aria-describedby="mapa-status"></canvas>
+              <div class="mapa-dica" id="mapa-dica" hidden></div>
+              <span class="selo-mapa badge" id="selo-mapa" aria-hidden="true" hidden></span>
+            </div>
+            <p class="campo__ajuda">Modo compacto (n &gt; 10): um passo por coluna de pivô. Roda do mouse ou pinça para zoom, arraste para mover, passe o mouse ou toque numa célula para ver o valor.</p>
+            <p class="campo__ajuda mapa-status" id="mapa-status" aria-live="polite"></p>
+            <div class="grafico__legenda">
+              <span class="legenda__item"><span class="legenda__amostra amostra-bloco" style="background:var(--canvas-intervalo-borda);border-color:var(--canvas-intervalo-borda)"></span>valor &gt; 0</span>
+              <span class="legenda__item"><span class="legenda__amostra amostra-bloco" style="background:var(--canvas-erro);border-color:var(--canvas-erro)"></span>valor &lt; 0 (intensidade ∝ log |v|)</span>
+              <span class="legenda__item"><span class="legenda__amostra amostra-bloco" style="background:var(--canvas-grade);border-color:var(--canvas-grade)"></span>zero eliminado</span>
+              <span class="legenda__item"><span class="legenda__amostra amostra-bloco" style="background:var(--canvas-pivo);border-color:var(--canvas-pivo)"></span>pivô / coluna atual</span>
+              <span class="legenda__item"><span class="legenda__amostra amostra-bloco" style="background:var(--canvas-vetor-b);border-color:var(--canvas-vetor-b-borda)"></span>b (escala própria)</span>
+            </div>
+          </div>
+          <p class="descricao-passo" id="desc-gauss" aria-live="polite"></p>
+          <div class="solucao" id="solucao-gauss"></div>
+          <div id="comparacao-gauss"></div>
+          <div class="grafico__legenda" id="legenda-grade">
+            <span class="legenda__item"><span class="legenda__amostra amostra-bloco" style="background:var(--canvas-pivo-fundo);border-color:var(--canvas-pivo)"></span>pivô</span>
+            <span class="legenda__item"><span class="legenda__amostra amostra-bloco" style="background:transparent;border:1px dashed var(--canvas-pivo)"></span>linha pivô</span>
+            <span class="legenda__item"><span class="legenda__amostra amostra-bloco" style="background:var(--canvas-linha-operada);border-color:var(--canvas-linha-operada-borda)"></span>linha sendo operada</span>
+            <span class="legenda__item"><span class="legenda__amostra amostra-bloco" style="background:transparent;border:2px solid var(--canvas-vetor-b-borda)"></span>coluna b</span>
+          </div>
+        </div>
+        <div class="card"><div id="player-gauss"></div></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- Gaveta "Ver código" (marcação de design/demo.html) -->
+<div class="codigo-overlay" id="codigo-overlay" hidden></div>
+<aside class="gaveta-codigo" id="gaveta-codigo" role="dialog" aria-modal="true" aria-labelledby="gaveta-titulo" aria-describedby="codigo-origem" hidden>
+  <div class="gaveta-codigo__topo">
+    <h2 class="gaveta-codigo__titulo" id="gaveta-titulo"><span class="badge badge--metodo" id="gaveta-metodo">—</span> <span id="gaveta-arquivo"></span></h2>
+    <div class="gaveta-codigo__acoes">
+      <button type="button" class="btn btn--secundario btn-copiar" id="copiar-codigo">Copiar</button>
+      <button type="button" class="btn btn--secundario btn--icone" id="fechar-codigo" aria-label="Fechar código (Esc)">✕</button>
+    </div>
+  </div>
+  <div class="gaveta-codigo__corpo" tabindex="0" aria-label="Código JavaScript do método">
+    <pre class="codigo"><code id="codigo-fonte"></code></pre>
+  </div>
+  <div class="gaveta-codigo__corpo" id="corpo-avisos" tabindex="0" aria-label="Avisos do método" hidden></div>
+  <p class="gaveta-codigo__rodape"><span class="codigo-etapa" id="codigo-etapa" hidden></span><span id="codigo-origem"></span> ▶ = linha do passo em execução. A validação dos campos (intervalo, tolerância, máx. iterações, casos-limite) fica em <code>js/metodos/validacao.js</code>. <span class="sr-only" id="copiar-status" aria-live="polite"></span></p>
+</aside>
+
+<!-- Núcleo numérico (Matemático Numérico) — ordem de dependência:
+     expressao.js (Expressao) → comum.js (Metodos.fmt, erroRelativo...) → métodos (usam comum) → validacao.js (usa Expressao + métodos) -->
+<script src="js/expressao.js"></script>
+<script src="js/metodos/comum.js"></script>
+<script src="js/metodos/avisos.js"></script>
+<script src="js/metodos/bisseccao.js"></script>
+<script src="js/metodos/newton.js"></script>
+<script src="js/metodos/gauss.js"></script>
+<script src="js/metodos/validacao.js"></script>
+<!-- Interface -->
+<script src="js/player.js"></script>
+<script src="js/grafico.js"></script>
+<script src="js/visual/comum.js"></script>
+<script src="js/visual/adaptador.js"></script>
+<script src="js/visual/chamadas.js"></script>
+<script src="js/visual/codigo.js"></script>
+<script src="js/visual/avisos.js"></script>
+<script src="js/visual/gauss-entrada.js"></script>
+<script src="js/visual/gauss-provisorio.js"></script>
+<script src="js/visual/gauss-mapa.js"></script>
+<script src="js/visual/bisseccao.js"></script>
+<script src="js/visual/newton.js"></script>
+<script src="js/visual/gauss-pivo.js"></script>
+<script src="js/visual/gauss.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

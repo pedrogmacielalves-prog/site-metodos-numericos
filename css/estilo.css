@@ -1,0 +1,284 @@
+/* Layout das telas. Cores, tipografia, raios e componentes vêm de design/tokens.css e design/componentes.css.
+   Sem variáveis de cor aqui; --duracao-animacao e --intervalo-passo vêm de tokens.css. */
+.topo-site { display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-4); padding: var(--esp-4) var(--esp-5); background: var(--cor-fundo-2); border-bottom: 1px solid var(--cor-borda); }
+.topo-site h1 { margin: 0; font-size: var(--fs-lg); flex: 1 1 auto; }
+.abas { display: flex; gap: var(--esp-2); flex-wrap: wrap; }
+.aba { border: 1px solid var(--cor-borda-forte); background: transparent; color: var(--cor-texto); padding: var(--esp-2) var(--esp-4); border-radius: var(--raio-pill); cursor: pointer; font: inherit; min-height: 40px; }
+.aba:hover { background: var(--cor-superficie-2); }
+.aba[aria-selected="true"] { background: var(--cor-primaria); border-color: var(--cor-primaria); color: var(--cor-sobre-primaria); font-weight: var(--fw-semi); }
+main { max-width: var(--largura-max); margin: 0 auto; padding: var(--esp-5); }
+.painel[hidden] { display: none; }
+.layout { display: grid; grid-template-columns: 300px 1fr; gap: var(--esp-5); align-items: start; }
+@media (max-width: 900px) { .layout { grid-template-columns: 1fr; } main { padding: var(--esp-3); } }
+.coluna { display: flex; flex-direction: column; gap: var(--esp-4); min-width: 0; }
+.form-metodo { display: flex; flex-direction: column; gap: var(--esp-3); }
+.form-metodo h2, .cabeca-cartao h2 { margin: 0; font-size: var(--fs-md); }
+.form-metodo .input { width: 100%; }
+.linha-campos { display: grid; grid-template-columns: 1fr 1fr; gap: var(--esp-2); }
+.campo-check { display: flex; gap: var(--esp-2); align-items: center; font-size: var(--fs-sm); }
+.acoes { display: flex; gap: var(--esp-2); flex-wrap: wrap; }
+.mensagens { display: flex; flex-direction: column; gap: var(--esp-2); }
+.mensagens:empty { display: none; }
+.cabeca-cartao { display: flex; justify-content: space-between; align-items: center; gap: var(--esp-2); margin-bottom: var(--esp-3); }
+canvas.grafico-canvas { width: 100%; height: 380px; display: block; border-radius: var(--raio-md); background: var(--canvas-fundo); border: 1px solid var(--cor-borda); }
+.amostra-bloco { width: 14px; height: 14px; border: 1px solid; border-radius: 3px; }
+.amostra-losango { transform: rotate(45deg) scale(.8); border-radius: 0; }
+.amostra-raiz { border-radius: 50%; border: 2px solid var(--canvas-fundo); box-shadow: 0 0 0 1px var(--canvas-raiz); }
+.descricao-passo { font-family: var(--fonte-mono); font-size: var(--fs-sm); min-height: 1.4em; margin: var(--esp-3) 0 0; }
+/* Player */
+.player { display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-2); }
+.player .progresso { flex: 1 1 160px; accent-color: var(--cor-primaria); }
+.player .contador { min-width: 70px; text-align: right; }
+.player .btn--icone { font-family: var(--fonte-mono); font-variant-emoji: text; display: inline-flex; align-items: center; justify-content: center; }
+.player select.input { min-height: 40px; width: auto; flex: 0 0 auto; }
+/* Tabelas */
+.tabela-rolagem { max-height: 340px; overflow: auto; }
+.tabela-rolagem thead th { position: sticky; top: 0; }
+.tabela td { font-family: var(--fonte-mono); white-space: nowrap; }
+.tabela tbody tr { cursor: pointer; }
+.tabela tbody tr.futura td { color: var(--cor-texto-suave); font-style: italic; }
+.tabela td, .tabela th { font-variant-numeric: tabular-nums; }
+.tabela td:not(:first-child), .tabela th:not(:first-child) { text-align: right; }
+.tabela tbody tr:focus-visible { outline: 3px solid var(--cor-foco); outline-offset: -3px; }
+/* Gauss: entrada */
+.entrada-matriz { display: grid; gap: var(--esp-1); }
+.entrada-matriz { align-items: center; }
+.entrada-matriz .input { min-width: 3.2em; width: 100%; padding: 0 4px; text-align: center; min-height: 40px; font-family: var(--fonte-mono); font-size: var(--fs-sm); }
+.entrada-matriz .rotulo-col, .entrada-matriz .rotulo-lin { font-family: var(--fonte-mono); font-size: var(--fs-sm); color: var(--cor-texto-suave); text-align: center; }
+.entrada-matriz .col-b-rot { border-left: 3px solid var(--cor-borda-forte); }
+.entrada-matriz .col-b { border-left-width: 3px; }
+/* Gauss: visualização */
+.matriz-vis { display: flex; flex-direction: column; gap: 4px; font-family: var(--fonte-mono); min-width: max-content; padding: var(--esp-2) 0; }
+.matriz-vis .mv-cabeca { display: grid; gap: 4px; padding: 0 3px; }
+.matriz-vis .rotulo { font-size: var(--fs-sm); }
+.matriz-vis .cel.b { border-left-width: 3px; }
+.matriz-vis .mv-linha { display: grid; gap: 4px; align-items: center; border-radius: var(--raio-sm); padding: 2px; border: 1px solid transparent; transition: background var(--duracao-animacao), transform var(--duracao-animacao); }
+.matriz-vis .rotulo { color: var(--cor-texto-suave); font-size: var(--fs-xs); text-align: center; }
+.matriz-vis .cel { background: var(--cor-superficie-2); color: var(--cor-texto); border-radius: 4px; padding: var(--esp-2) 4px; text-align: center; font-size: var(--fs-sm); font-variant-numeric: tabular-nums; border: 1px solid transparent; }
+.matriz-vis .cel.b { border-left: 2px solid var(--cor-borda-forte); }
+.matriz-vis .cel.pivo { background: var(--canvas-pivo-fundo); border-color: var(--canvas-pivo); font-weight: var(--fw-negrito); }
+.matriz-vis .cel.zerado { color: var(--cor-texto-suave); }
+.matriz-vis .mv-linha.alvo { background: var(--canvas-linha-operada); border-color: var(--canvas-linha-operada-borda); }
+.matriz-vis .mv-linha.origem { background: transparent; border: 1px dashed var(--canvas-pivo); }
+.solucao { display: flex; gap: var(--esp-2); flex-wrap: wrap; font-family: var(--fonte-mono); margin-top: var(--esp-3); }
+.solucao span { padding: var(--esp-2) var(--esp-3); border-radius: var(--raio-sm); background: var(--cor-superficie-2); border: 1px solid var(--cor-borda); }
+.solucao span.novo { background: var(--canvas-pivo-fundo); border-color: var(--canvas-pivo); font-weight: var(--fw-semi); }
+.solucao span.vazio { opacity: .5; }
+@media (max-width: 640px) {
+  .abas { flex-wrap: nowrap; overflow-x: auto; }
+  .aba { flex: 0 0 auto; }
+  .topo-site h1 { font-size: var(--fs-md); }
+}
+/* Gaveta em tela cheia <1024px: CSS do Designer (componentes.css §8) */
+@media (max-width: 1023.98px) {
+  /* alvos de toque ≥ 44px (BUG-09) */
+  .btn, .aba, .input, .player select.input { min-height: 44px; }
+  .btn--icone { min-width: 44px; }
+}
+.badge { white-space: nowrap; }
+.entrada-matriz .input[aria-invalid="true"] { border-color: var(--cor-erro, var(--canvas-erro)); border-width: 2px; }
+/* Gauss: seletor de n e rolagem horizontal com indicação */
+.seletor-n { display: flex; gap: var(--esp-2); align-items: center; }
+.seletor-n .input { width: 5em; text-align: center; }
+.rolagem-x { overflow-x: auto; max-width: 100%; padding-bottom: 4px;
+  background: linear-gradient(to right, var(--cor-superficie), var(--cor-superficie)) left / 24px 100% no-repeat local,
+              linear-gradient(to left, var(--cor-superficie), var(--cor-superficie)) right / 24px 100% no-repeat local,
+              radial-gradient(farthest-side at 0 50%, var(--cor-borda-forte), transparent) left / 10px 100% no-repeat scroll,
+              radial-gradient(farthest-side at 100% 50%, var(--cor-borda-forte), transparent) right / 10px 100% no-repeat scroll; }
+.rolagem-x:focus-visible { outline: 3px solid var(--cor-foco); outline-offset: 2px; }
+.dica-rolagem { margin: var(--esp-1) 0 0; }
+.layout > * { min-width: 0; }
+/* Gauss n > 10: mapa de cores, colar, lista de x */
+.bloco-mapa .mapa-wrap { position: relative; }
+.mapa-gauss { display: block; width: 100%; height: 320px; background: var(--canvas-fundo); border-radius: var(--raio-sm); touch-action: none; cursor: crosshair; }
+.mapa-gauss:focus-visible { outline: 3px solid var(--cor-foco); outline-offset: 2px; }
+.mapa-dica { position: absolute; pointer-events: none; background: var(--cor-fundo-2); color: var(--cor-texto); border: 1px solid var(--cor-borda-forte); border-radius: var(--raio-sm); padding: 2px var(--esp-2); font-family: var(--fonte-mono); font-size: var(--fs-sm); white-space: nowrap; box-shadow: var(--sombra-2); }
+.mapa-status { font-family: var(--fonte-mono); min-height: 1.4em; }
+.solucao.solucao--lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(10em, 1fr)); max-height: 240px; overflow-y: auto; font-size: var(--fs-sm); }
+.painel-colar { display: grid; gap: var(--esp-2); }
+.area-colar { font-family: var(--fonte-mono); font-size: var(--fs-sm); min-height: 8em; resize: vertical; width: 100%; }
+.aviso-colar .acoes { margin-top: var(--esp-2); }
+.acoes-entrada { flex-wrap: wrap; }
+.resumo-grande { font-size: var(--fs-sm); color: var(--cor-texto-suave); }
+
+/* Gauss: grade [A | b] (n ≤ 10) fica num card largo na área principal, acima da visualização */
+.card-entrada .rolagem-x { margin-top: var(--esp-2); }
+.painel-colar[hidden], .grafico__legenda[hidden] { display: none; }
+.entrada-matriz .rotulo-lin { position: sticky; left: 0; z-index: 1; background: var(--cor-superficie); align-self: stretch; display: flex; align-items: center; justify-content: center; }
+.entrada-matriz .input { min-width: 0; }
+
+.tabela-x { width: 100%; border-collapse: collapse; font-family: var(--fonte-mono); font-variant-numeric: tabular-nums; }
+.tabela-x th, .tabela-x td { padding: 2px var(--esp-2); text-align: right; border-bottom: 1px solid var(--cor-borda); }
+.tabela-x thead th { position: sticky; top: 0; background: var(--cor-superficie); color: var(--cor-texto-suave); }
+.tabela-x tbody th { color: var(--cor-texto-suave); font-weight: normal; width: 3em; }
+.solucao.solucao--lista { display: block; max-height: 240px; overflow-y: auto; columns: 3 12em; column-gap: var(--esp-4); }
+.solucao--lista .tabela-x { display: block; }
+.solucao--lista .tabela-x tbody { display: block; }
+.solucao--lista .tabela-x tr { display: grid; grid-template-columns: 3.5em 7em; break-inside: avoid; }
+.solucao--lista .tabela-x thead { display: none; }
+.solucao__vazia { color: var(--cor-texto-suave); font-style: italic; margin: 0; }
+
+/* Entrada A | b lado a lado */
+.entrada-ab { display: flex; align-items: flex-start; gap: var(--esp-4); min-width: 0; }
+.entrada-bloco { flex: 1 1 auto; min-width: 0; }
+.entrada-bloco--b { flex: 0 0 auto; padding-left: var(--esp-4); border-left: 3px solid var(--canvas-vetor-b-borda); background: var(--cor-superficie); box-shadow: -8px 0 8px -6px var(--cor-borda-forte); position: relative; z-index: 1; }
+.entrada-titulo { margin: 0 0 var(--esp-1); font-size: var(--fs-sm); color: var(--cor-texto-suave); font-weight: 600; }
+.entrada-b { grid-template-columns: minmax(3.8em, 6em); }
+.entrada-b .input.col-b { border-left-width: 1px; }
+.modo-colar { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: var(--esp-1) var(--esp-4); }
+.painel-colar #colar-separado[hidden], .painel-colar #colar-aumentada[hidden] { display: none; }
+#colar-separado { display: grid; gap: var(--esp-2); }
+.area-colar[aria-invalid="true"] { border-color: var(--canvas-erro); border-width: 2px; }
+.matriz-vis .cel.b { margin-left: var(--esp-2); border-left: 3px solid var(--canvas-vetor-b-borda); background: var(--canvas-vetor-b-fundo); color: var(--canvas-vetor-b); }
+.matriz-vis .mv-cabeca .rotulo-b { margin-left: var(--esp-2); border-left: 3px solid var(--canvas-vetor-b-borda); color: var(--canvas-vetor-b); }
+
+/* QA v2 */
+@media (min-width: 1024px) { .gaveta-codigo { width: min(90ch, 92vw); } } /* BUG-15: 70 colunas sem rolagem lateral */
+@media (max-width: 640px) {
+  .aba__longo { display: none; } /* BUG-17: "Gauss" cabe a 390px; nome completo no aria-label */
+  .campo-check { min-height: 44px; display: flex; align-items: center; gap: var(--esp-2); } /* BUG-09 */
+  .campo-check input { width: 24px; height: 24px; margin: 0; }
+  .entrada-matriz .input { min-height: 44px; }
+}
+
+/* Avisos: estilos em componentes.css (Designer §8); aqui só garante [hidden] na gaveta */
+.gaveta-codigo__corpo[hidden], .gaveta-codigo__rodape[hidden], #copiar-codigo[hidden] { display: none; }
+/* entrada: células não impõem largura intrínseca (n=10 cabe em 1280 sem rolagem) */
+#rolagem-entrada input { width: 100%; min-width: 0; box-sizing: border-box; }
+#entrada-matriz { width: 100%; }
+
+/* ===== Pivoteamento (Gauss): seletor, selo da troca, comparação do modo Nunca — só layout; cores vêm dos tokens/componentes ===== */
+.campo-pivo select { width: 100%; }
+.pivo-gauss { min-height: 1.9em; margin: 0 0 var(--esp-4); display: flex; align-items: center; gap: var(--esp-2, 8px); flex-wrap: wrap; }
+.pivo-gauss .pivo-ok { color: var(--cor-texto-suave, inherit); font-size: var(--fs-sm, .875rem); }
+.mapa-wrap { position: relative; }
+.selo-mapa { position: absolute; top: 0; transform: translate(-50%, -2px); pointer-events: none; white-space: nowrap; font-size: var(--fs-xs, .75rem); z-index: 1; }
+.comparacao { margin-top: var(--esp-3, 12px); }
+.comparacao__titulo { font-size: var(--fs-sm, .875rem); margin: 0 0 var(--esp-2, 8px); }
+.comparacao__grade { display: grid; grid-template-columns: 1fr 1fr; gap: var(--esp-3, 12px); }
+.comparacao__x { font-family: var(--fonte-mono); font-size: var(--fs-xs, .75rem); margin: var(--esp-1, 4px) 0 0; overflow-wrap: anywhere; }
+@media (max-width: 600px) { .comparacao__grade { grid-template-columns: 1fr; } }
+pre.codigo .ln.ln-titulo { margin-top: var(--esp-3, 12px); border-top: 1px solid var(--cor-borda); padding-top: var(--esp-2, 8px); font-weight: var(--fw-semi, 600); }
+
+/* Revisão 2 do Designer */
+.mapa-wrap [hidden], .selo-mapa[hidden] { display: none !important; }
+.bloco-mapa > .grafico__legenda { margin-top: var(--esp-3); }
+.btn-tema-icone { display: none; }
+@media (max-width: 640px) {
+  .topo-site .abas { order: 3; flex: 1 0 100%; }
+  .topo-site h1 { flex: 1 1 0; min-width: 0; }
+  #alternar-tema { width: 44px; height: 44px; min-width: 44px; padding: 0; justify-content: center; white-space: nowrap; }
+  #alternar-tema .btn-tema-texto { display: none; }
+  #alternar-tema .btn-tema-icone { display: inline-block; }
+}
+.bloco-mapa .mapa-status:empty { min-height: 0; margin: 0; }
+@media (max-width: 640px) { .entrada-ab { width: max-content; min-width: 100%; } .entrada-ab > .entrada-bloco { flex: 0 0 auto; } }
+
+/* Revisão 3 do Designer */
+.matriz-vis .mv-linha > .rotulo:first-child, .matriz-vis .mv-cabeca > span:first-child { position:sticky; left:0; z-index:2; align-self:stretch; display:flex; align-items:center; justify-content:center; margin:-3px 0 -3px -3px; padding-left:3px; background:var(--cor-superficie); box-shadow:0 -4px 0 var(--cor-superficie), 0 4px 0 var(--cor-superficie), 1px 0 0 var(--cor-borda-forte); }
+.matriz-vis .mv-linha.alvo > .rotulo:first-child { background:linear-gradient(var(--canvas-linha-operada),var(--canvas-linha-operada)), var(--cor-superficie); }
+.selo-mapa-linha { margin: 0 0 var(--esp-2); min-height: 1.9em; }
+.resumo-glifo { display: inline-flex; vertical-align: middle; padding: 0; border: 0; background: none; }
+.pivo-gauss:empty, .selo-mapa-linha:empty { display: none; }
+/* QA v3 BUG-09: alvos de toque ≥ 44px em telas estreitas */
+@media (max-width: 640px) {
+  input.progresso, .entrada-grade input, .gaveta-codigo button, .gaveta-codigo summary { min-height: 44px; }
+}
+.codigo-etapa { display: block; margin-bottom: var(--esp-1); } .codigo-etapa strong { color: var(--cor-texto); }
+#rolagem-entrada input[data-l] { text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
+.entrada-ab { width: max-content; min-width: 100%; } .entrada-ab > .entrada-bloco:not(.entrada-bloco--b) { flex: 1 0 auto; }
+/* n ≤ 10 em ≥ 1024px: grades fluidas sem rolagem; abaixo disso, rolagem com rótulos fixos */
+@media (min-width: 1024px) { .entrada-ab { width: auto; min-width: 0; } .entrada-ab > .entrada-bloco:not(.entrada-bloco--b) { flex: 1 1 auto; min-width: 0; } }
+.matriz-vis .cel { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.matriz-vis .cel.cel--xs, .entrada-matriz .input.cel--xs { font-size: var(--fs-xs); }
+@media (min-width: 1024px) { .matriz-vis { min-width: 0; } }
+.matriz-vis .cel.cel--xs, .entrada-matriz .input.cel--xs { padding-left: 1px; padding-right: 1px; letter-spacing: -0.02em; }
+@media (min-width: 1024px) { .matriz-vis .cel.b { margin-left: var(--esp-1); } }
+
+/* Controle segmentado (Designer): critério de parada e pivoteamento */
+.campo-seg { border: 0; margin: 0; padding: 0; min-width: 0; }
+.campo-seg legend { padding: 0; margin-bottom: var(--esp-1); }
+.segmentado{display:inline-flex;border:1px solid var(--cor-borda-forte);border-radius:var(--raio-md);padding:2px;gap:2px;flex-wrap:wrap;max-width:100%}
+.segmentado input{position:absolute;opacity:0}
+.segmentado label{padding:var(--esp-2) var(--esp-3);border-radius:calc(var(--raio-md) - 2px);cursor:pointer;min-height:44px;display:flex;align-items:center}
+.segmentado input:checked+label{background:var(--cor-primaria);color:var(--cor-sobre-primaria);font-weight:600}
+.segmentado input:focus-visible+label{outline:3px solid var(--cor-foco);outline-offset:2px}
+/* cabeçalhos da tabela: sem caixa alta; fórmulas em itálico e mono */
+.tabela th { text-transform: none; }
+.tabela th.th-formula { font-style: italic; font-family: var(--fonte-mono); letter-spacing: 0; }
+.fallback { white-space: nowrap; }
+/* cabeçalho do painel Gráfico */
+.cabeca-cartao, .painel-cabecalho { display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-2); }
+.cabeca-cartao .acoes-metodo { display: flex; gap: var(--esp-2); }
+@media (max-width: 479.98px) { .cabeca-cartao .acoes-metodo { flex-basis: 100%; flex-wrap: nowrap; } .cabeca-cartao .acoes-metodo .btn { min-width: 0; } }
+.cabeca-cartao > .acoes { display: flex; gap: var(--esp-2); align-items: center; }
+@media (max-width: 479.98px) {
+  .cabeca-cartao > .acoes { flex-basis: 100%; flex-wrap: nowrap; }
+  .cabeca-cartao > .acoes > .btn { flex: 0 0 auto; padding-left: var(--esp-2); padding-right: var(--esp-2); }
+  .cabeca-cartao > .acoes > .acoes-metodo { flex: 1 1 0; min-width: 0; }
+  .cabeca-cartao .acoes-metodo .btn, .cabeca-cartao > .acoes > .btn { padding-left: var(--esp-2); padding-right: var(--esp-2); white-space: nowrap; gap: var(--esp-1); }
+  .cabeca-cartao .acoes-metodo .btn { flex: 1 1 auto; }
+}
+
+/* BUG-28: resultado desatualizado (entradas editadas depois do cálculo) */
+.desatualizado { margin: 0; font-size: var(--fs-sm); color: var(--cor-texto-suave); display: flex; gap: var(--esp-2); align-items: baseline; flex-wrap: wrap; }
+.desatualizado[hidden] { display: none; }
+.resultado-desatualizado { opacity: .55; transition: opacity var(--duracao-animacao); }
+
+/* Segmentado na coluna lateral: uma linha, colunas iguais (Designer) */
+.form-metodo .segmentado { display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; box-sizing: border-box; }
+.form-metodo .segmentado[id^="seg-criterio"] { grid-template-columns: repeat(2, 1fr); }
+.form-metodo .segmentado label { justify-content: center; padding-inline: var(--esp-2); text-align: center; }
+/* nível único por grade (V.caberCelulas): o JS aplica .cel--xs a todas as células quando o nível é xs */
+
+/* Piso de 4 algarismos (xs): grade que não cabe rola por dentro (Designer) */
+#rolagem-entrada.grade--rola .entrada-ab { width: max-content; min-width: 100%; }
+#rolagem-entrada.grade--rola .entrada-ab > .entrada-bloco { flex: 0 0 auto; }
+#rolagem-entrada.grade--rola .entrada-bloco--b { position: sticky; right: 0; }
+.matriz-vis.grade--rola { min-width: max-content; }
+.matriz-vis.grade--rola .cel.b { position: sticky; right: 0; z-index: 1; background: linear-gradient(var(--canvas-vetor-b-fundo), var(--canvas-vetor-b-fundo)), var(--cor-superficie); }
+/* sombra na borda que ainda tem conteúdo (tem-esq / tem-dir, atualizadas no scroll e no resize) */
+#rolagem-entrada .entrada-bloco--b { box-shadow: none; }
+#rolagem-entrada.tem-dir .entrada-bloco--b, .rolagem-x.tem-dir .matriz-vis.grade--rola .cel.b { box-shadow: -8px 0 8px -6px var(--cor-borda-forte); }
+.rolagem-x.tem-esq .entrada-matriz .rotulo-lin { box-shadow: 8px 0 8px -6px var(--cor-borda-forte); }
+.rolagem-x.tem-esq .matriz-vis .mv-linha > .rotulo:first-child, .rolagem-x.tem-esq .matriz-vis .mv-cabeca > span:first-child { box-shadow: 0 -4px 0 var(--cor-superficie), 0 4px 0 var(--cor-superficie), 1px 0 0 var(--cor-borda-forte), 8px 0 8px -6px var(--cor-borda-forte); }
+.entrada-bloco--b, .entrada-matriz .rotulo-lin, .matriz-vis .cel.b { transition: box-shadow var(--duracao-animacao); }
+@media (prefers-reduced-motion: reduce) { .entrada-bloco--b, .entrada-matriz .rotulo-lin, .matriz-vis .cel.b { transition: none; } }
+.matriz-vis.grade--rola .mv-cabeca .rotulo-b { position: sticky; right: 0; z-index: 1; background: var(--cor-superficie); }
+
+/* Revisão BUG-33 (Designer): título de A fora da rolagem; canto e rótulos L fixos sem fresta */
+.entrada-titulo--fora { margin: var(--esp-2) 0 calc(-1 * (var(--fs-sm) * 1.5 + var(--esp-1))); position: relative; z-index: 4; pointer-events: none; }
+.card-entrada .rolagem-x { padding-left: var(--esp-1); }
+.entrada-matriz .rotulo-canto { position: sticky; left: 0; z-index: 3; background: var(--cor-superficie); align-self: stretch; margin-left: calc(-1 * var(--esp-1)); padding-left: var(--esp-1); box-shadow: 1px 0 0 var(--cor-borda-forte); }
+.entrada-matriz .rotulo-lin { z-index: 2; margin-left: calc(-1 * var(--esp-1)); padding-left: var(--esp-1); box-shadow: 1px 0 0 var(--cor-borda-forte); }
+.rolagem-x.tem-esq .entrada-matriz .rotulo-lin { box-shadow: 1px 0 0 var(--cor-borda-forte), 8px 0 8px -6px var(--cor-borda-forte); }
+/* Solução do Gauss (n > 3): tabela compacta com rolagem interna */
+.solucao-tabela { max-height: 16rem; overflow-y: auto; margin-top: var(--esp-2); border: 1px solid var(--cor-borda); border-radius: var(--raio-sm); }
+.solucao-tabela:focus-visible { outline: 3px solid var(--cor-foco); outline-offset: 2px; }
+.tabela--solucao { font-family: var(--fonte-mono); font-variant-numeric: tabular-nums; font-size: var(--fs-xs); }
+.tabela--solucao th, .tabela--solucao td { padding: 2px var(--esp-2); text-align: right; }
+.tabela--solucao thead th { position: sticky; top: 0; }
+.tabela--solucao tbody th { text-align: left; font-weight: normal; color: var(--cor-texto-suave); }
+.entrada-matriz .rotulo-canto, .entrada-matriz .rotulo-lin { left: calc(-1 * var(--esp-1)); }
+/* cobre o gap entre linhas (sem fresta das células ao rolar) */
+.entrada-matriz .rotulo-lin, .entrada-matriz .rotulo-canto { box-shadow: 0 calc(-1 * var(--esp-1)) 0 var(--cor-superficie), 0 var(--esp-1) 0 var(--cor-superficie), 1px 0 0 var(--cor-borda-forte); }
+.rolagem-x.tem-esq .entrada-matriz .rotulo-lin { box-shadow: 0 calc(-1 * var(--esp-1)) 0 var(--cor-superficie), 0 var(--esp-1) 0 var(--cor-superficie), 1px 0 0 var(--cor-borda-forte), 8px 0 8px -6px var(--cor-borda-forte); }
+
+/* ===== Tabela de iterações no formato da professora (bissecção / Newton) ===== */
+.tabela-professora th { font-style: italic; font-family: var(--fonte-mono); text-transform: none; letter-spacing: 0; white-space: nowrap; }
+.tabela-professora td { padding-left: var(--esp-3); padding-right: var(--esp-3); }
+.tabela-professora tbody tr { height: 44px; }
+/* k fixo na rolagem horizontal (390) */
+.tabela-professora th:first-child, .tabela-professora td:first-child { position: sticky; left: 0; z-index: 1; background: var(--cor-fundo-2); box-shadow: 1px 0 0 var(--cor-borda-forte); }
+.tabela-professora thead th:first-child { z-index: 3; background: var(--cor-fundo); }
+.tabela-rolagem.tem-esq .tabela-professora th:first-child, .tabela-rolagem.tem-esq .tabela-professora td:first-child { box-shadow: 1px 0 0 var(--cor-borda-forte), 6px 0 6px -4px var(--cor-borda-forte); }
+.tabela-professora td:first-child { transition: box-shadow var(--duracao-animacao); }
+.tabela-professora tr.atual td:first-child { background: var(--cor-primaria-fundo); }
+/* linha final = raiz, em âmbar (token do Designer) */
+.tabela-professora tbody tr.linha-raiz td, .tabela-professora tbody tr.linha-raiz td:first-child { background: var(--cor-troca-obrigatoria-fundo); color: var(--cor-troca-obrigatoria); font-weight: var(--fw-semi); }
+.tabela-professora tr.linha-raiz { box-shadow: inset 0 1px 0 var(--cor-troca-obrigatoria-borda), inset 0 -1px 0 var(--cor-troca-obrigatoria-borda); }
+.tabela-professora tr.linha-raiz.atual td:first-child { box-shadow: inset 4px 0 0 var(--cor-primaria), 1px 0 0 var(--cor-borda-forte); }
+.tabela-professora tbody tr.linha-raiz.futura td { font-style: normal; }
+/* Designer: sombra mais curta nos rótulos fixos do Gauss quando rolado */
+.rolagem-x.tem-esq .matriz-vis .mv-linha > .rotulo:first-child, .rolagem-x.tem-esq .matriz-vis .mv-cabeca > span:first-child { box-shadow: 0 -4px 0 var(--cor-superficie), 0 4px 0 var(--cor-superficie), 1px 0 0 var(--cor-borda-forte), 6px 0 6px -4px var(--cor-borda-forte); }
+.rolagem-x.tem-esq .entrada-matriz .rotulo-lin { box-shadow: 0 calc(-1 * var(--esp-1)) 0 var(--cor-superficie), 0 var(--esp-1) 0 var(--cor-superficie), 1px 0 0 var(--cor-borda-forte), 6px 0 6px -4px var(--cor-borda-forte); }

@@ -1,0 +1,167 @@
+/* tokens.css — Design tokens do site de Métodos Numéricos
+   Tema ESCURO é o padrão (:root). Tema claro opcional: <html data-theme="light">.
+   Sem @import: linke tokens.css antes de componentes.css. */
+:root {
+  /* Tipografia */
+  --fonte-texto: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --fonte-mono: "JetBrains Mono", ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --fonte-formula: "KaTeX_Main", "Latin Modern Math", "Cambria Math", "STIX Two Math", Georgia, serif;
+  --fs-xs: 0.75rem;   /* 12 */
+  --fs-sm: 0.875rem;  /* 14 */
+  --fs-base: 1rem;    /* 16 */
+  --fs-md: 1.125rem;  /* 18 */
+  --fs-lg: 1.375rem;  /* 22 */
+  --fs-xl: 1.75rem;   /* 28 */
+  --fs-2xl: 2.25rem;  /* 36 */
+  --fs-3xl: 3rem;     /* 48 */
+  --lh-apertado: 1.2; --lh-normal: 1.5; --lh-solto: 1.7;
+  --fw-normal: 400; --fw-medio: 500; --fw-semi: 600; --fw-negrito: 700;
+
+  /* Espaçamento (base 4px) */
+  --esp-0: 0; --esp-1: 0.25rem; --esp-2: 0.5rem; --esp-3: 0.75rem; --esp-4: 1rem;
+  --esp-5: 1.5rem; --esp-6: 2rem; --esp-7: 3rem; --esp-8: 4rem;
+
+  /* Layout */
+  --largura-max: 1200px; --gutter: var(--esp-5);
+  /* breakpoints (referência; use em @media): sm 640, md 768, lg 1024, xl 1280 */
+
+  /* Raios */
+  --raio-sm: 6px; --raio-md: 10px; --raio-lg: 16px; --raio-pill: 999px;
+
+  /* Movimento */
+  --dur-rapida: 120ms; --dur-media: 200ms; --dur-lenta: 320ms; --dur-passo: 600ms; --dur-gaveta: 280ms; --dur-pulso: 1800ms;
+  --dur-troca-linha: 400ms; --ease-troca: cubic-bezier(0.2, 0.8, 0.2, 1); /* deslize da troca de linhas (Gauss) */
+  /* aliases legados lidos pelo JS atual (player.js / comum.js) */
+  --duracao-animacao: 600ms; --intervalo-passo: 1200ms;
+  --ease-padrao: cubic-bezier(0.2, 0, 0, 1);
+  --ease-entrada: cubic-bezier(0, 0, 0.2, 1);
+  --ease-saida: cubic-bezier(0.4, 0, 1, 1);
+
+  /* ===== Cores — ESCURO (padrão). Paleta oficial:
+     #192338 Oxford Blue · #1E2E4F Space cadet · #31487A YInMn Blue · #8FB3E2 Jordy Blue · #D9E1F1 Lavender
+     Acento quente único: #F2C27B (âmbar suave) para raiz, pivô e aviso. */
+  color-scheme: dark;
+  --cor-fundo: #192338;          /* Oxford Blue — fundo da página */
+  --cor-fundo-2: #1E2E4F;        /* Space cadet — cabeçalho, painéis de gráfico, tabelas */
+  --cor-superficie: #31487A;     /* YInMn — cards (só texto/texto-suave por cima) */
+  --cor-superficie-2: #273A63;   /* hover / campo sobre card */
+  --cor-campo: #192338;          /* fundo de inputs e código */
+  --cor-borda: #34497A;
+  --cor-borda-forte: #5C74A8;    /* bordas de controles (≥ 3:1) */
+  --cor-texto: #D9E1F1;          /* Lavender */
+  --cor-texto-suave: #B4C3DE;
+  --cor-primaria: #8FB3E2;       /* Jordy Blue — destaque */
+  --cor-primaria-hover: #A9C5EA;
+  --cor-primaria-fundo: #2B4170;
+  --cor-sobre-primaria: #192338;
+  --cor-foco: #D9E1F1;
+  --cor-acento: #F2C27B;         /* único acento quente */
+
+  --cor-bisseccao: #8FB3E2;  --cor-bisseccao-fundo: #1E2E4F;
+  --cor-newton: #C3B5F2;     --cor-newton-fundo: #1E2E4F;
+  --cor-gauss: #86D3C8;      --cor-gauss-fundo: #1E2E4F;
+
+  --cor-intervalo: #8FB3E2;  --cor-intervalo-fundo: rgba(143, 179, 226, 0.16);
+  --cor-raiz: #F2C27B;
+  --cor-tangente: #C3B5F2;
+  --cor-pivo: #F2C27B;       --cor-pivo-fundo: #5A4526;
+  --cor-eliminada: #8FA3C7;  --cor-eliminada-fundo: #1E2E4F;
+  --cor-curva: #D9E1F1;
+
+  --cor-sucesso: #86D3C8; --cor-sucesso-fundo: #192338;
+  --cor-erro: #F4A6B4;    --cor-erro-fundo: #192338;
+  --cor-aviso: #F2C27B;   --cor-aviso-fundo: #192338;
+  --cor-info: #8FB3E2;    --cor-info-fundo: #192338;
+
+  --grafico-grade: #2A3B5E; --grafico-eixo: #8FA3C7;
+
+  /* ===== Tokens de CANVAS (nomes estáveis; hex/rgba simples p/ getComputedStyle) ===== */
+  --canvas-fundo: #1E2E4F;
+  --canvas-funcao: #D9E1F1;
+  --canvas-eixo: #8FA3C7;
+  --canvas-grade: #2A3B5E;
+  --canvas-rotulo: #B4C3DE;
+  --canvas-intervalo-preenchimento: rgba(143, 179, 226, 0.16);
+  --canvas-intervalo-borda: #8FB3E2;
+  --canvas-ponto-medio: #C3B5F2;
+  --canvas-tangente: #C3B5F2;
+  --canvas-raiz: #F2C27B;
+  --canvas-pivo: #F2C27B;
+  --canvas-pivo-fundo: #5A4526;
+  --canvas-linha-operada: rgba(143, 179, 226, 0.22);
+  --canvas-linha-operada-borda: #8FB3E2;
+  --canvas-erro: #F4A6B4;
+  /* vetor b do Gauss: verde-lima (distinto de tangente lilás, pivô âmbar, Gauss verde-água, linha operada azul) */
+  --canvas-vetor-b: #B5D67A;
+  --canvas-vetor-b-fundo: #2F3A1E;
+  --canvas-vetor-b-borda: #8AA65A;
+
+  /* ===== Código (painel Ver código) ===== */
+  --codigo-fundo: #192338;
+  --codigo-texto: #D9E1F1;
+  --codigo-num-linha: #7F92B8;
+  --codigo-linha-ativa: #2B4170;
+  --tok-kw: #B79CF5; --tok-str: #86D3C8; --tok-num: #F2C27B; --tok-com: #9AAACB; --tok-fn: #7FB0F0;
+  --tok-op: #B4C3DE; --tok-var: #D9E1F1;
+
+  /* ===== Avisos (painel de vantagens/problemas) ===== */
+  --cor-apoio-vantagem: #86D3C8; --cor-apoio-vantagem-fundo: #173A43; --cor-apoio-vantagem-borda: #4E9A90;
+  --cor-apoio-problema: #F2C27B; --cor-apoio-problema-fundo: #3A3122; --cor-apoio-problema-borda: #B08A4F;
+  --cor-selo: #F2C27B; --cor-sobre-selo: #192338;
+  /* Selos de troca de linha (Gauss) e caixas de comparação (modo Nunca) */
+  --cor-troca-obrigatoria: #F2C27B; --cor-troca-obrigatoria-fundo: #3A3122; --cor-troca-obrigatoria-borda: #F2C27B;
+  --cor-troca-recomendada: #8FB3E2; --cor-troca-recomendada-fundo: #22365C; --cor-troca-recomendada-borda: #8FB3E2;
+  --cor-troca-classica: #D9E1F1; --cor-troca-classica-fundo: #1E2E4F; --cor-troca-classica-borda: #8FA3C7;
+  --cor-borda-comparacao: #8FA3C7; --cor-fundo-comparacao: #273A63;
+
+  --sombra-1: 0 1px 2px rgba(5, 10, 25, 0.45);
+  --sombra-2: 0 6px 16px rgba(5, 10, 25, 0.5);
+  --sombra-3: 0 16px 40px rgba(5, 10, 25, 0.6);
+  --overlay: rgba(10, 16, 30, 0.6);
+}
+
+/* ===== Tema CLARO opcional ===== */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --cor-fundo: #D9E1F1; --cor-fundo-2: #E8EDF7; --cor-superficie: #FFFFFF; --cor-superficie-2: #E8EDF7; --cor-campo: #FFFFFF;
+  --cor-borda: #C3CDE2; --cor-borda-forte: #6B7DA3;
+  --cor-texto: #192338; --cor-texto-suave: #3A4A6B;
+  --cor-primaria: #31487A; --cor-primaria-hover: #1E2E4F; --cor-primaria-fundo: #D9E1F1; --cor-sobre-primaria: #FFFFFF;
+  --cor-foco: #31487A; --cor-acento: #8A4B00;
+  --cor-bisseccao: #31487A; --cor-bisseccao-fundo: #E8EDF7;
+  --cor-newton: #5B3FA8; --cor-newton-fundo: #EEEAFB;
+  --cor-gauss: #1F6359; --cor-gauss-fundo: #E3F3F0;
+  --cor-intervalo: #31487A; --cor-intervalo-fundo: rgba(49, 72, 122, 0.12);
+  --cor-raiz: #8A4B00; --cor-tangente: #5B3FA8;
+  --cor-pivo: #8A4B00; --cor-pivo-fundo: #F6E2BE;
+  --cor-eliminada: #4A5C80; --cor-eliminada-fundo: #E8EDF7;
+  --cor-curva: #192338;
+  --cor-sucesso: #1F6359; --cor-sucesso-fundo: #E3F3F0;
+  --cor-erro: #A3263F; --cor-erro-fundo: #FBE6EA;
+  --cor-aviso: #8A4B00; --cor-aviso-fundo: #FBEFD9;
+  --cor-info: #31487A; --cor-info-fundo: #E8EDF7;
+  --grafico-grade: #D3DBEA; --grafico-eixo: #4A5C80;
+  --canvas-fundo: #FFFFFF; --canvas-funcao: #192338; --canvas-eixo: #4A5C80; --canvas-grade: #D3DBEA; --canvas-rotulo: #3A4A6B;
+  --canvas-intervalo-preenchimento: rgba(49, 72, 122, 0.12); --canvas-intervalo-borda: #31487A;
+  --canvas-ponto-medio: #5B3FA8; --canvas-tangente: #5B3FA8; --canvas-raiz: #8A4B00;
+  --canvas-pivo: #8A4B00; --canvas-pivo-fundo: #F6E2BE;
+  --canvas-linha-operada: rgba(49, 72, 122, 0.12); --canvas-linha-operada-borda: #31487A; --canvas-erro: #A3263F;
+  --canvas-vetor-b: #4A6B12; --canvas-vetor-b-fundo: #EEF5DC; --canvas-vetor-b-borda: #6E8A34;
+  --codigo-fundo: #F4F6FB; --codigo-texto: #192338; --codigo-num-linha: #56657F; --codigo-linha-ativa: #D9E1F1;
+  --tok-kw: #5B3FA8; --tok-str: #1F6359; --tok-num: #8A4B00; --tok-com: #4F5E7A; --tok-fn: #31487A; --tok-op: #3A4A6B; --tok-var: #192338;
+  --cor-apoio-vantagem: #1F6359; --cor-apoio-vantagem-fundo: #E3F3F0; --cor-apoio-vantagem-borda: #4E8F86;
+  --cor-apoio-problema: #8A4B00; --cor-apoio-problema-fundo: #FBEFD9; --cor-apoio-problema-borda: #B07A2E;
+  --cor-selo: #8A4B00; --cor-sobre-selo: #FFFFFF;
+  --cor-troca-obrigatoria: #8A4B00; --cor-troca-obrigatoria-fundo: #FBEFD9; --cor-troca-obrigatoria-borda: #B07A2E;
+  --cor-troca-recomendada: #31487A; --cor-troca-recomendada-fundo: #E6EDF8; --cor-troca-recomendada-borda: #5A77AE;
+  --cor-troca-classica: #192338; --cor-troca-classica-fundo: #EEF2F9; --cor-troca-classica-borda: #6B7FA6;
+  --cor-borda-comparacao: #6B7FA6; --cor-fundo-comparacao: #F4F6FB;
+  --sombra-1: 0 1px 2px rgba(25, 35, 56, 0.08), 0 1px 3px rgba(25, 35, 56, 0.1);
+  --sombra-2: 0 4px 12px rgba(25, 35, 56, 0.12);
+  --sombra-3: 0 16px 40px rgba(25, 35, 56, 0.2);
+  --overlay: rgba(25, 35, 56, 0.45);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-rapida: 0ms; --dur-media: 0ms; --dur-lenta: 0ms; --dur-passo: 0ms; --dur-gaveta: 0ms; --dur-pulso: 0ms; --dur-troca-linha: 0ms; --ease-troca: linear; --duracao-animacao: 0ms; }
+}
