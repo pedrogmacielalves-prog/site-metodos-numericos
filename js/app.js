@@ -146,7 +146,7 @@
   }
   /* tooltip da célula: valor completo com vírgula e − (o dado bruto fica em data-valor) */
   function tituloCel(v) { return String(v).replace(/-/g, '−').replace(/\./g, ','); }
-  function celula(i, j, n) { return '<input form="form-gauss" size="5" type="text" inputmode="decimal" data-l="' + i + '" data-c="' + j + '" class="input input--num' + (j === n ? ' col-b' : '') + '" aria-label="' + (j === n ? 'b' + (i + 1) : 'A linha ' + (i + 1) + ', coluna ' + (j + 1)) + '" value="' + esc(curtoCel(modelo[i][j])) + '" data-valor="' + esc(modelo[i][j] == null ? '' : modelo[i][j]) + '" title="' + esc(modelo[i][j] == null ? '' : tituloCel(modelo[i][j])) + '">'; }
+  function celula(i, j, n) { return '<input form="form-gauss" size="5" type="text" autocomplete="off" data-l="' + i + '" data-c="' + j + '" class="input input--num' + (j === n ? ' col-b' : '') + '" aria-label="' + (j === n ? 'b' + (i + 1) : 'A linha ' + (i + 1) + ', coluna ' + (j + 1)) + '" value="' + esc(curtoCel(modelo[i][j])) + '" data-valor="' + esc(modelo[i][j] == null ? '' : modelo[i][j]) + '" title="' + esc(modelo[i][j] == null ? '' : tituloCel(modelo[i][j])) + '">'; }
   /* Células de entrada: fora do foco mostram 4 algarismos significativos; o valor completo fica em data-valor (vai para o cálculo). */
   function curtoCel(t) {
     t = t == null ? '' : String(t); var v = Number(t.trim().replace(',', '.').replace(/[−–]/g, '-'));

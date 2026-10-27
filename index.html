@@ -28,8 +28,8 @@
         <label class="campo"><span class="campo__rotulo">f(x)</span><input class="input" type="text" name="f" value="x^3 - x - 2" spellcheck="false" autocomplete="off"></label>
         <p class="campo__ajuda">Operadores + − * / ^; funções sin, cos, tan, exp, ln (natural), log (base 10), sqrt, abs; constantes pi, e. Decimal com ponto ou vírgula (1.5 ou 1,5).</p>
         <div class="linha-campos">
-          <label class="campo"><span class="campo__rotulo">a</span><input class="input input--num" type="text" inputmode="decimal" name="a" value="1"></label>
-          <label class="campo"><span class="campo__rotulo">b</span><input class="input input--num" type="text" inputmode="decimal" name="b" value="2"></label>
+          <label class="campo"><span class="campo__rotulo">a</span><input class="input input--num" type="text" autocomplete="off" name="a" value="1"></label>
+          <label class="campo"><span class="campo__rotulo">b</span><input class="input input--num" type="text" autocomplete="off" name="b" value="2"></label>
         </div>
         <fieldset class="campo campo-seg"><legend class="campo__rotulo">Critério de parada</legend><div class="segmentado" id="seg-criterio-bisseccao" role="radiogroup"><input type="radio" id="crit-bisseccao-rel" name="criterio" value="relativo" checked><label for="crit-bisseccao-rel">Relativo (ε)</label><input type="radio" id="crit-bisseccao-abs" name="criterio" value="absoluto"><label for="crit-bisseccao-abs">Absoluto (tol)</label></div></fieldset>
         <div class="linha-campos">
@@ -70,7 +70,7 @@
         <label class="campo"><span class="campo__rotulo">f(x)</span><input class="input" type="text" name="f" value="x^2 - 2" spellcheck="false" autocomplete="off"></label>
         <label class="campo"><span class="campo__rotulo">f'(x) (opcional)</span><input class="input" type="text" name="df" value="" placeholder="vazio = automática" spellcheck="false" autocomplete="off"></label>
         <p class="campo__ajuda">Se f'(x) ficar vazio, a derivada é calculada simbolicamente a partir de f(x) e exibida abaixo. ln = log natural, log = base 10.</p>
-        <label class="campo"><span class="campo__rotulo">x₀</span><input class="input input--num" type="text" inputmode="decimal" name="x0" value="3"></label>
+        <label class="campo"><span class="campo__rotulo">x₀</span><input class="input input--num" type="text" autocomplete="off" name="x0" value="3"></label>
         <fieldset class="campo campo-seg"><legend class="campo__rotulo">Critério de parada</legend><div class="segmentado" id="seg-criterio-newton" role="radiogroup"><input type="radio" id="crit-newton-rel" name="criterio" value="relativo" checked><label for="crit-newton-rel">Relativo (ε)</label><input type="radio" id="crit-newton-abs" name="criterio" value="absoluto"><label for="crit-newton-abs">Absoluto (tol)</label></div></fieldset>
         <div class="linha-campos">
           <label class="campo"><span class="campo__rotulo rotulo-tol">ε</span><input class="input input--num" type="text" inputmode="decimal" name="tol" value="0,01" aria-describedby="criterio-newton"></label>
