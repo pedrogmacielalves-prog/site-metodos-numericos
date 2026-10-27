@@ -4,3 +4,13 @@ node_modules/
 screenshots/
 b32_res.json
 *.tmp
+
+# Material interno da equipe (não publicado)
+docs/
+tests/
+package.json
+package-lock.json
+design/*
+!design/tokens.css
+!design/componentes.css
+assets/paleta.jpg
