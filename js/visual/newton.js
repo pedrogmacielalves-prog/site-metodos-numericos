@@ -112,7 +112,7 @@
         larguraMin = p0 ? Math.max(Math.abs(p0.xNovo - p0.x) * 0.02, 1e-9 * (1 + Math.abs(p0.x)), 1e-3 * Math.min(1, Math.abs(p0.xNovo - p0.x) || 1)) : 1;
         if (!isFinite(larguraMin) || larguraMin <= 0) larguraMin = 1e-3;
         janelaTudo = calcJanelaTudo();
-        tabela.preencher(passos.map(function (p) { return [p.k + 1, V.sig6(p.x), V.sig6(p.fx), V.sig6(p.dfx), V.sig6(p.xNovo), (p[campo] == null ? '—' : V.sig6(p[campo])) + (p.criterioFallback ? V.FALLBACK_HTML : '')]; }), passos.map(function (p) { return [null, p.x, p.fx, p.dfx, p.xNovo, p[campo]]; }));
+        tabela.preencher(passos.map(function (p) { return [p.k + 1, V.oito(p.x), V.oito(p.fx), V.oito(p.dfx), V.oito(p.xNovo), (p[campo] == null ? '—' : V.oito(p[campo])) + (p.criterioFallback ? V.FALLBACK_HTML : '')]; }), passos.map(function (p) { return [null, p.x, p.fx, p.dfx, p.xNovo, p[campo]]; }));
         tabela.marcarRaiz(!!(res.resultado && res.resultado.convergiu));
         var th = el.tbody.closest('table').querySelector('.th-erro'); if (th) th.textContent = V.thErro('newton', res.criterio === 'relativo');
         if (!passos.length) { grafico.definir(fn, -1, 1, []); grafico.desenhar(null); el.descricao.textContent = ''; }

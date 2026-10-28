@@ -70,9 +70,9 @@
   var abas = {
     bisseccao: montarAba('bisseccao', dados, function (r) { var n = r.passos.length, est = r.resultado.iteracoesEstimadas, ultimo = r.passos[n - 1];
       var mot = r.resultado.motivo, exata = mot ? mot === 'RAIZ_EXATA' : (n === 0 || (ultimo && ultimo.fc === 0));
-      return 'Raiz ≈ ' + n6(r.resultado.raiz) + ' após ' + plural(n, 'iteração', 'iterações') + (exata ? ' (raiz exata encontrada; critério de parada não precisou ser atingido).' : (est ? ' (estimativa teórica: ' + est + ').' : '.')) + (exata ? '' : ' Parou porque ' + motivoCrit('bisseccao', r) + '.'); }),
+      return 'Raiz ≈ ' + window.Visual.oito(r.resultado.raiz) + ' após ' + plural(n, 'iteração', 'iterações') + (exata ? ' (raiz exata encontrada; critério de parada não precisou ser atingido).' : (est ? ' (estimativa teórica: ' + est + ').' : '.')) + (exata ? '' : ' Parou porque ' + motivoCrit('bisseccao', r) + '.'); }),
     newton: montarAba('newton', dados, function (r) { var n = r.passos.length, u = r.passos[n - 1], porPasso = r.resultado.motivo ? r.resultado.motivo !== 'RAIZ_EXATA' : (u && isFinite(u.erro) && u.fx !== 0);
-      return 'Raiz ≈ ' + n6(r.resultado.raiz, 12) + ' após ' + plural(n, 'iteração', 'iterações') + ({ simbolica: ' (derivada simbólica).', numerica: ' (derivada numérica).', fornecida: ' (derivada informada).' }[r.resultado.tipoDerivada] || '.') + (porPasso ? ' Parou porque ' + motivoCrit('newton', r) + '.' : ' Parou porque f(x) = 0.'); }),
+      return 'Raiz ≈ ' + window.Visual.oito(r.resultado.raiz) + ' após ' + plural(n, 'iteração', 'iterações') + ({ simbolica: ' (derivada simbólica).', numerica: ' (derivada numérica).', fornecida: ' (derivada informada).' }[r.resultado.tipoDerivada] || '.') + (porPasso ? ' Parou porque ' + motivoCrit('newton', r) + '.' : ' Parou porque f(x) = 0.'); }),
     gauss: montarAba('gauss', function (form) {
       var n = nAtual, M = [], ruim = null;
       if (n > GE.MAX_GRADE) {

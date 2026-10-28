@@ -53,12 +53,14 @@
 
 
   /* vetor solução: inteiros se todos quase-inteiros; senão mesmo nº de casas (vírgula decimal) */
+  /* Tabelas de resultado: 8 casas fixas (0 ou 1e-4 ≤ |x| < 1e8), senão 1,23456789e−09. Só exibição. */
+  V.oito = function (v) { if (v == null || !isFinite(v)) return '—'; v = Number(v); var a = Math.abs(v), s;
+    if (v === 0 || (a >= 1e-4 && a < 1e8)) { s = v.toFixed(8); if (/^-0\.0+$/.test(s)) s = s.slice(1); }
+    else { var p = v.toExponential(8).split('e'), e = +p[1]; s = p[0] + 'e' + (e < 0 ? '-' : '+') + (Math.abs(e) < 10 ? '0' : '') + Math.abs(e); }
+    return s.replace('.', ',').replace(/-/g, '−'); };
   V.fmtSolucao = function (x, escala, casas) {
     var y = x.map(function (v) { return V.limpar(v, escala); }), ok = y.filter(function (v) { return v != null && isFinite(v); });
-    var inteiros = ok.every(function (v) { return Math.abs(v - Math.round(v)) < 1e-9 * Math.max(1, Math.abs(v)); });
-    return y.map(function (v) { if (v == null) return '?'; if (!isFinite(v)) return '—';
-      if (V.extremo(v)) return V.fmtE(v);
-      var s = inteiros ? String(Math.round(v)) : v.toFixed(casas == null ? 6 : casas); if (/^-0(,0*|\.0*)?$/.test(s)) s = s.slice(1); return s.replace('.', ',').replace('-', '−'); });
+    return y.map(function (v) { if (v == null) return '?'; if (!isFinite(v)) return '—'; return V.oito(v); });
   };
   /* BUG-16: texto de exibição em PT-BR — vírgula decimal e sinal de menos tipográfico (não mexe no código da gaveta). */
   /* números por extenso (≥ 1e6 ou 0 < |v| < 1e-4) viram notação da matriz; não toca em 1e-17, x1, a11, L10 etc. */
