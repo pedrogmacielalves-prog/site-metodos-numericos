@@ -28,6 +28,7 @@
         var campo = res.criterio === 'relativo' ? V.criterio.campoErro : 'erro';
         passos = res.passos; atual = null; convergiu = !!(res.resultado && res.resultado.convergiu);
         var p0 = passos[0] || {};
+        grafico.restaurar(true);
         grafico.definir(f, p0.a, p0.b, passos.length ? [p0.fa, p0.fb] : []);
         tabela.preencher(passos.map(function (p) { return [p.k, V.oito(p.a), V.oito(p.b), V.oito(p.c), V.oito(p.fa), V.oito(p.fb), V.oito(p.fc), (p[campo] == null ? '—' : V.oito(p[campo])) + (p.criterioFallback ? V.FALLBACK_HTML : '')]; }), passos.map(function (p) { return [null, p.a, p.b, p.c, p.fa, p.fb, p.fc, p[campo]]; }));
         tabela.marcarRaiz(convergiu);

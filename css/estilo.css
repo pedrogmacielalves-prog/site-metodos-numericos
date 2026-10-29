@@ -282,3 +282,12 @@ pre.codigo .ln.ln-titulo { margin-top: var(--esp-3, 12px); border-top: 1px solid
 /* Designer: sombra mais curta nos rótulos fixos do Gauss quando rolado */
 .rolagem-x.tem-esq .matriz-vis .mv-linha > .rotulo:first-child, .rolagem-x.tem-esq .matriz-vis .mv-cabeca > span:first-child { box-shadow: 0 -4px 0 var(--cor-superficie), 0 4px 0 var(--cor-superficie), 1px 0 0 var(--cor-borda-forte), 6px 0 6px -4px var(--cor-borda-forte); }
 .rolagem-x.tem-esq .entrada-matriz .rotulo-lin { box-shadow: 0 calc(-1 * var(--esp-1)) 0 var(--cor-superficie), 0 var(--esp-1) 0 var(--cor-superficie), 1px 0 0 var(--cor-borda-forte), 6px 0 6px -4px var(--cor-borda-forte); }
+/* Zoom/pan dos gráficos (Bissecção/Newton): 1 dedo move o gráfico, então a rolagem da página fica fora dele */
+.grafico-area { position: relative; }
+canvas.grafico-canvas { touch-action: none; cursor: grab; }
+canvas.grafico-canvas:active { cursor: grabbing; }
+canvas.grafico-canvas:focus-visible { outline: 2px solid var(--cor-foco, var(--cor-primaria)); outline-offset: 2px; }
+.grafico-zoom { position: absolute; top: var(--esp-2); right: var(--esp-2); display: flex; gap: var(--esp-1); z-index: 2; }
+.grafico-zoom .btn { background: var(--cor-superficie); min-height: 36px; font-family: var(--fonte-mono); }
+.grafico-zoom .btn--icone { width: 36px; min-width: 36px; font-size: 1.1rem; }
+@media (max-width: 479.98px) { canvas.grafico-canvas { height: 300px; } }

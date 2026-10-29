@@ -32,6 +32,8 @@
     var modo = 'seguir', janela = null, larguraMin = 1e-6, janelaTudo = null;
     var tabela = new V.Tabela(el.tbody, function (i) { el.player.pausar(); el.player.irPara(i); });
     var btModo = document.getElementById('enquadrar-newton'), indice = 0;
+    // zoom/pan do usuário pausa o enquadramento automático; Restaurar (ou trocar o modo) volta a ele
+    grafico.aoRestaurar = function () { mostrar(indice, false); };
 
     function janelaDoPasso(i) {
       if (!passos[i]) return [-1, 1];
@@ -96,7 +98,7 @@
       });
     }
     if (btModo) btModo.addEventListener('click', function () {
-      modo = modo === 'seguir' ? 'tudo' : 'seguir';
+      modo = modo === 'seguir' ? 'tudo' : 'seguir'; grafico.restaurar(true);
       btModo.textContent = modo === 'seguir' ? 'Ver tudo' : 'Seguir passo';
       btModo.setAttribute('aria-pressed', String(modo === 'tudo'));
       mostrar(indice, false);
@@ -105,7 +107,7 @@
     return {
       carregar: function (res, fn) {
         var campo = res.criterio === 'relativo' ? V.criterio.campoErro : 'erro';
-        passos = res.passos; f = fn; janela = null; indice = 0;
+        passos = res.passos; f = fn; janela = null; indice = 0; grafico.restaurar(true);
         raiz = res.resultado && res.resultado.convergiu && isFinite(res.resultado.raiz) ? res.resultado.raiz : null;
         var p0 = passos[0];
         // largura mínima: 2% do 1º passo (ou 1e-3·escala), para a curva continuar legível nos passos finais
