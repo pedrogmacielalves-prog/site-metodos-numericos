@@ -113,3 +113,21 @@
       if (cont && (tr.offsetTop < cont.scrollTop + 30 || tr.offsetTop > cont.scrollTop + cont.clientHeight - 30)) cont.scrollTop = tr.offsetTop - cont.clientHeight / 2; }
   };
 })(window);
+/* Limite de precisão (precisão dupla, Number.EPSILON ≈ 2,2·10⁻¹⁶). */
+(function (g) {
+  'use strict';
+  var V = g.Visual = g.Visual || {}, EPS = Number.EPSILON;
+  /* Piso alcançável para a tolerância: relativo = EPS; absoluto = EPS · escala dos valores (|a|, |b| ou |x0|, mínimo 1). */
+  V.pisoTol = function (modo, escala) { return modo === 'absoluto' ? EPS * Math.max(1, Math.abs(escala) || 0) : EPS; };
+  V.tolAbaixoDoPiso = function (tol, modo, escala) { return isFinite(tol) && tol > 0 && tol < V.pisoTol(modo, escala); };
+  /* Parada no limite de precisão: os iterados deixaram de mudar em ponto flutuante (não foi raiz exata).
+     Bissecção: c = a ou c = b (o intervalo não se divide mais) ou cₖ = cₖ₋₁. Newton: xₖ₊₁ = xₖ com f(xₖ) ≠ 0. */
+  V.paradaNoLimite = function (metodo, passos) {
+    var n = passos ? passos.length : 0, u = n && passos[n - 1]; if (!u) return false;
+    if (metodo === 'bisseccao') { if (u.fc === 0) return false; return u.c === u.a || u.c === u.b || (n > 1 && passos[n - 2].c === u.c); }
+    if (metodo === 'newton') return u.fx !== 0 && isFinite(u.x) && u.xNovo === u.x;
+    return false;
+  };
+  /* Newton em “ciclo” entre números vizinhos (diferença de poucos ulps): é o limite de precisão, não uma oscilação de verdade. */
+  V.cicloNoLimite = function (passos) { var u = passos && passos[passos.length - 1]; return !!u && isFinite(u.x) && isFinite(u.xNovo) && u.fx !== 0 && Math.abs(u.xNovo - u.x) <= 4 * EPS * Math.max(Math.abs(u.x), Number.MIN_VALUE); };
+})(typeof window !== 'undefined' ? window : this);

@@ -15,7 +15,10 @@
       x.map(function (v, k) { var t = V.fmtTab(V.limpar(v, esc0)); if (/^−0(,0*)?$/.test(t)) t = t.slice(1); return '<tr><th scope="row">x' + (k + 1) + '</th><td title="' + V.completo(v) + '" aria-label="x' + (k + 1) + ' = ' + V.completo(v) + '">' + t + '</td></tr>'; }).join('') + '</tbody></table></div>'; }
   function mostrarMensagens(id, res, resumo) {
     var h = '';
-    if (res.erro) h += toast(res.codigoErro === 'NAO_CONVERGIU' ? 'aviso' : 'erro', res.erro);
+    if (res.erro && id === 'newton' && res.codigoErro === 'OSCILACAO' && window.Visual.cicloNoLimite(res.passos)) {
+      var u = res.passos[res.passos.length - 1];
+      h += toast('aviso', 'Parou no limite de precisão do computador (precisão dupla, ~16 dígitos): xₖ alterna entre dois números vizinhos que o computador não consegue aproximar mais, então o ' + ((res.criterio || 'relativo') === 'relativo' ? 'ε' : 'tol') + ' pedido não pôde ser alcançado. Raiz ≈ ' + window.Visual.oito(u.xNovo) + ' após ' + res.passos.length + ' iterações; este é o resultado mais preciso possível em precisão dupla.');
+    } else if (res.erro) h += toast(res.codigoErro === 'NAO_CONVERGIU' ? 'aviso' : 'erro', res.erro);
     else if (res.resultado) h += toast('sucesso', resumo(res), id === 'gauss' ? tabelaSolucao(res) : '');
     (res.avisos || []).forEach(function (a) { h += toast('aviso', a); });
     if (id === 'gauss' && window.Visual.pivo) h = h.replace(/\[(!|i|⇅)\] /g, function (_, g) { return window.Visual.pivo.glifo({ '!': 'obrigatoria', i: 'recomendada', '⇅': 'classica' }[g]) + ' '; });
@@ -70,9 +73,9 @@
   var abas = {
     bisseccao: montarAba('bisseccao', dados, function (r) { var n = r.passos.length, est = r.resultado.iteracoesEstimadas, ultimo = r.passos[n - 1];
       var mot = r.resultado.motivo, exata = mot ? mot === 'RAIZ_EXATA' : (n === 0 || (ultimo && ultimo.fc === 0));
-      return 'Raiz ≈ ' + window.Visual.oito(r.resultado.raiz) + ' após ' + plural(n, 'iteração', 'iterações') + (exata ? ' (raiz exata encontrada; critério de parada não precisou ser atingido).' : (est ? ' (estimativa teórica: ' + est + ').' : '.')) + (exata ? '' : ' Parou porque ' + motivoCrit('bisseccao', r) + '.'); }),
+      return 'Raiz ≈ ' + window.Visual.oito(r.resultado.raiz) + ' após ' + plural(n, 'iteração', 'iterações') + (exata ? ' (raiz exata encontrada; critério de parada não precisou ser atingido).' : (est ? ' (estimativa teórica: ' + est + ').' : '.')) + (exata ? '' : ' Parou porque ' + motivoCrit('bisseccao', r) + '.') + limite('bisseccao', r); }),
     newton: montarAba('newton', dados, function (r) { var n = r.passos.length, u = r.passos[n - 1], porPasso = r.resultado.motivo ? r.resultado.motivo !== 'RAIZ_EXATA' : (u && isFinite(u.erro) && u.fx !== 0);
-      return 'Raiz ≈ ' + window.Visual.oito(r.resultado.raiz) + ' após ' + plural(n, 'iteração', 'iterações') + ({ simbolica: ' (derivada simbólica).', numerica: ' (derivada numérica).', fornecida: ' (derivada informada).' }[r.resultado.tipoDerivada] || '.') + (porPasso ? ' Parou porque ' + motivoCrit('newton', r) + '.' : ' Parou porque f(x) = 0.'); }),
+      return 'Raiz ≈ ' + window.Visual.oito(r.resultado.raiz) + ' após ' + plural(n, 'iteração', 'iterações') + ({ simbolica: ' (derivada simbólica).', numerica: ' (derivada numérica).', fornecida: ' (derivada informada).' }[r.resultado.tipoDerivada] || '.') + (porPasso ? ' Parou porque ' + motivoCrit('newton', r) + '.' : ' Parou porque f(x) = 0.') + limite('newton', r); }),
     gauss: montarAba('gauss', function (form) {
       var n = nAtual, M = [], ruim = null;
       if (n > GE.MAX_GRADE) {
@@ -89,6 +92,14 @@
       return 'Solução única' + (d != null && isFinite(d) ? ' (det A = ' + (V.extremo(d) ? V.fmtE(d) : V.fmtCient(d)) + ')' : '') + (x.length > 3 ? ' com ' + x.length + ' incógnitas.' : ': ' + t.map(function (s, i) { return 'x' + (i + 1) + ' = ' + s; }).join('; ') + '.') + tr; })
   };
   /* Critério de parada (Bissecção/Newton): mapeamento com o núcleo em js/visual/chamadas.js (Visual.criterio). */
+  /* Parada no limite de precisão do computador (detectada nos passos, não pelo valor de ε). */
+  function limite(m, r) { var V = window.Visual; if (!r.resultado || r.resultado.motivo === 'RAIZ_EXATA' || !V.paradaNoLimite(m, r.passos)) return '';
+    var modo = r.criterio || 'relativo', nome = modo === 'relativo' ? 'ε' : 'tol', form = $('#form-' + m);
+    var tol = Number(String(form.tol.value).trim().replace(/−/g, '-').replace(',', '.')), esc = m === 'bisseccao' ? Math.max(Math.abs(+String(form.a.value).replace(',', '.').replace(/−/g, '-')) || 0, Math.abs(+String(form.b.value).replace(',', '.').replace(/−/g, '-')) || 0) : Math.abs(r.resultado.raiz) || 0;
+    var inalcancavel = V.tolAbaixoDoPiso(tol, modo, Math.max(esc, Math.abs(r.resultado.raiz) || 0));
+    return ' Atenção: parou no limite de precisão do computador (precisão dupla, ~16 dígitos): ' + (m === 'bisseccao' ? 'o ponto médio deixou de mudar' : 'xₖ₊₁ ficou igual a xₖ') +
+      (inalcancavel ? ', e o ' + nome + ' pedido (' + V.sig(tol, 3) + ') é menor do que o computador consegue distinguir, então não pôde ser alcançado de fato.' : ', então o erro mostrado (0) é o limite da representação, não um ganho real de precisão.') +
+      ' Este resultado é o mais preciso possível em precisão dupla.'; }
   function motivoCrit(m, r) { var C = window.Visual.criterio, modo = r.criterio || 'relativo'; var u = r.passos[r.passos.length - 1]; return C.formula[m][modo] + (u && u.criterioFallback ? ' (|x| ≈ 0: usou o erro absoluto contra ε)' : ''); }
   var CRIT_TXT = {
     bisseccao: { absoluto: 'Critério de parada: <strong>(b − a)/2 &lt; tol</strong> (meia largura do intervalo), ou f(c) = 0.', relativo: 'Critério de parada: <strong>|cₖ − cₖ₋₁|/|cₖ| &lt; ε</strong> (variação do ponto médio relativa a |c|), ou f(c) = 0.' },
@@ -98,7 +109,19 @@
     function sync() { var modo = form.criterio.value || 'relativo', rel = modo === 'relativo';
       form.querySelector('.rotulo-tol').textContent = rel ? 'ε' : 'Tolerância (tol)';
       $('#criterio-' + m).innerHTML = CRIT_TXT[m][modo];
-      var th = $('#painel-' + m + ' .th-erro'); if (th) th.textContent = window.Visual.thErro(m, rel); }
+      var th = $('#painel-' + m + ' .th-erro'); if (th) th.textContent = window.Visual.thErro(m, rel); dica(); }
+    /* Dica não bloqueante: tolerância abaixo do que a precisão dupla consegue distinguir */
+    var dicaEl = document.createElement('p'); dicaEl.className = 'campo__ajuda dica-precisao'; dicaEl.id = 'dica-precisao-' + m; dicaEl.hidden = true; dicaEl.setAttribute('aria-live', 'polite');
+    $('#criterio-' + m).parentNode.insertBefore(dicaEl, $('#criterio-' + m).nextSibling);
+    form.tol.setAttribute('aria-describedby', 'criterio-' + m + ' dica-precisao-' + m);
+    function lerN(v) { var t = String(v || '').trim().replace(/−/g, '-').replace(',', '.'); return t === '' ? NaN : Number(t); }
+    function dica() { var V = window.Visual, modo = form.criterio.value || 'relativo', tol = lerN(form.tol.value);
+      var esc = m === 'bisseccao' ? Math.max(Math.abs(lerN(form.a.value)) || 0, Math.abs(lerN(form.b.value)) || 0) : Math.abs(lerN(form.x0.value)) || 0;
+      var mostra = V.tolAbaixoDoPiso(tol, modo, esc); dicaEl.hidden = !mostra; if (!mostra) return;
+      dicaEl.innerHTML = '<span class="badge badge--aviso">Limite de precisão</span> ' + (modo === 'relativo'
+        ? 'Abaixo de ~2,2·10⁻¹⁶ o computador não consegue distinguir números (precisão dupla, ~16 dígitos). O método vai parar quando os valores deixarem de mudar.'
+        : 'Perto de ' + (esc > 1 ? '|x| ≈ ' + V.sig(esc, 3) : 'x = 1') + ', o computador não distingue diferenças menores que ~' + V.sig(V.pisoTol(modo, esc), 2) + ' (precisão dupla, ~16 dígitos). O método vai parar quando os valores deixarem de mudar.'); }
+    ['tol', 'a', 'b', 'x0'].forEach(function (k) { if (form[k] && form[k].addEventListener) form[k].addEventListener('input', dica); });
     /* BUG-28: trocar o critério recalcula se a aba já tem resultado (senão só rótulo e ajuda) */
     /* ε padrão: relativo = Metodos.TOL_PADRAO.relativo (fallback 0,01); absoluto = 0,0001 (sem padrão no core). Um valor guardado por critério; o campo nunca fica vazio. */
     var TP = (window.Metodos && window.Metodos.TOL_PADRAO) || {}, fmtTol = function (v) { return String(v).replace('.', ','); };

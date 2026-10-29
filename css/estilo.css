@@ -291,3 +291,6 @@ canvas.grafico-canvas:focus-visible { outline: 2px solid var(--cor-foco, var(--c
 .grafico-zoom .btn { background: var(--cor-superficie); min-height: 36px; font-family: var(--fonte-mono); }
 .grafico-zoom .btn--icone { width: 36px; min-width: 36px; font-size: 1.1rem; }
 @media (max-width: 479.98px) { canvas.grafico-canvas { height: 300px; } }
+.dica-precisao { color: var(--cor-texto); }
+.dica-precisao[hidden] { display: none; }
+.dica-precisao .badge { margin-right: var(--esp-1); }
