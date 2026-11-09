@@ -4,11 +4,12 @@
   'use strict';
   const Metodos = g.Metodos = g.Metodos || {};
 
-  /* Limites do sistema linear. N_MAX é o maior n em que o caminho da página
-     (Worker acima de N_MODO_GRANDE, mais a apresentação) ficou perto de 2,5 s
-     com pico de RSS perto de 300 MiB nesta máquina. O motor síncrono sozinho
-     ainda fica perto de 1 s em n = 1000; esse não é o caminho da interface.
-     Não é um máximo possível nem um teto seguro para todo navegador.
+  /* Limites do sistema linear. N_MAX = 800 porque, acima de N_MODO_GRANDE,
+     a página usa Worker e nesse caminho o tempo ficou perto de 2,5 s.
+     O pico de RSS não é um teto: uma amostra local ficou perto de 300 MiB e um
+     reteste em outro Node (com retorno do Worker, apresentação e reconstrução
+     do buffer) mediu cerca de 440–457 MiB. O orçamento de 48 MiB cobre só as
+     fotos e um buffer, não o RSS do processo. Não é um máximo possível.
      N_GRADE: grade editável e passos operação a operação. */
   Metodos.N_MIN = 2;
   Metodos.N_GRADE = 10;
@@ -178,8 +179,8 @@
    * Parada com desigualdade estrita: erro < tol.
    */
   Metodos.LIMIAR_ZERO_RELATIVO = 1e-12;
-  // Limiar FIXO (BUG-32): o critério não muda por causa do tamanho de x.
-  // Raiz múltipla em 0 no relativo é diagnosticada em validacao.js (RAIZ_EM_ZERO_CRITERIO_RELATIVO).
+  // Limiar fixo: o critério não muda por causa do tamanho de x.
+  // Esgotar iterações não infere raiz em zero nem multiplicidade.
   Metodos.testeParada = function (criterio, novo, anterior, erroAbs, tol) {
     if (criterio === 'absoluto') return { criterio: 'absoluto', erro: erroAbs, parou: erroAbs < tol, fallback: false };
     if (anterior == null) return { criterio: 'relativo', erro: null, parou: false, fallback: false };
@@ -333,12 +334,16 @@
   const fmt = (v) => Metodos.fmtBR(v);
   Metodos.textos = {
     bisseccao: function (manter, parou, crit) {
-      if (manter === 'raiz') return 'f(c) = 0: raiz exata encontrada.';
+      if (manter === 'raiz') return 'f(c) = 0: zero observado neste ponto.';
       if (parou) {
-        if (!crit || crit.criterio === 'absoluto') return '(b − a)/2 < tolerância: critério atingido, raiz ≈ c.';
-        return `${Metodos.textos_criterio(crit, 'c')} < ε: critério relativo atingido, raiz ≈ c.`;
+        const base = !crit || crit.criterio === 'absoluto'
+          ? '(b − a)/2 < tolerância.'
+          : `${Metodos.textos_criterio(crit, 'c')} < ε.`;
+        return `${base} Parada só pelo intervalo: aproxima uma raiz somente se f for contínua.`;
       }
-      const lado = manter === 'esquerda' ? 'f(a)·f(c) < 0 → raiz em [a, c]; b ← c' : 'f(a)·f(c) > 0 → raiz em [c, b]; a ← c';
+      const lado = manter === 'esquerda'
+        ? 'sinais opostos em [a, c]; o próximo intervalo é [a, c]'
+        : 'sinais opostos em [c, b]; o próximo intervalo é [c, b]';
       return crit && crit.criterio === 'relativo' ? `${lado} (${Metodos.textos_criterio(crit, 'c')})` : lado;
     },
     newton: function (k, x, fx, dfx, xNovo, crit, parou) {

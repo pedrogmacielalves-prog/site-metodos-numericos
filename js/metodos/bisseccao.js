@@ -50,8 +50,10 @@
         etapa: parou ? 'criterioParada' : 'pontoMedio', etapas,
         descricao: Metodos.textos.bisseccao(manter, parou, crit),
       });
+      // Zero exatamente observado é outro desfecho que encolher o intervalo.
       if (fc === 0) return fim(true, 'RAIZ_EXATA');
-      if (crit.parou) return fim(true, 'TOLERANCIA');
+      // Parada só pelo tamanho do intervalo: não certifica raiz sem continuidade.
+      if (crit.parou) return fim(false, 'PARADA_INTERVALO');
       cAnt = c;
       // @etapa:atualizaIntervalo — fica a metade que contém a raiz
       if (manter === 'esquerda') {

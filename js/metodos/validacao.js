@@ -100,8 +100,8 @@
       const iteracoesEstimadas = v.criterio === 'relativo' ? null : Math.max(0, Math.ceil(Math.log2((v.b - v.a) / v.tol)));
       if (v.fa === 0 || v.fb === 0) {
         const raiz = v.fa === 0 ? v.a : v.b;
-        avisar(avisos, 'RAIZ_NO_EXTREMO', `O extremo x = ${fmt(raiz)} já é uma raiz exata; nenhuma iteração foi necessária.`);
-        return { passos: [], resultado: { raiz, fRaiz: 0, iteracoes: 0, convergiu: true, motivo: 'RAIZ_EXATA', iteracoesEstimadas: null, criterio: v.criterio, tol: v.tol }, erro: null, codigoErro: null };
+        avisar(avisos, 'RAIZ_NO_EXTREMO', `O extremo x = ${fmt(raiz)} já é um zero observado; nenhuma iteração foi necessária.`);
+        return { passos: [], resultado: { raiz, fRaiz: 0, iteracoes: 0, convergiu: true, motivo: 'RAIZ_EXATA', zeroObservado: true, raizCertificada: true, hipotese: null, iteracoesEstimadas: null, criterio: v.criterio, tol: v.tol }, erro: null, codigoErro: null };
       }
       const r = Metodos.bisseccao(v.f, v.a, v.b, v.tol, v.maxIter, v.criterio);
       avisarFallback(avisos, r.passos, v.tol, r.motivo);
@@ -110,14 +110,19 @@
         const passos = r.passos.slice(0, ruim);
         return { passos, resultado: null, erro: `f(c) não é finito em c = ${fmt(r.passos[ruim].c)} (função não definida ali).`, codigoErro: 'FUNCAO_NAO_DEFINIDA' };
       }
-      const resultado = { raiz: r.raiz, fRaiz: v.f(r.raiz), iteracoes: r.passos.length, convergiu: r.convergiu, motivo: r.motivo, iteracoesEstimadas, criterio: v.criterio, tol: v.tol };
-      if (pareceDescontinuidade(r.passos, v.fa, v.fb)) {
+      const zeroObservado = r.motivo === 'RAIZ_EXATA';
+      const resultado = {
+        raiz: r.raiz, fRaiz: v.f(r.raiz), iteracoes: r.passos.length, convergiu: zeroObservado, motivo: r.motivo,
+        zeroObservado, raizCertificada: zeroObservado,
+        hipotese: r.motivo === 'PARADA_INTERVALO' ? 'continuidade' : null,
+        iteracoesEstimadas, criterio: v.criterio, tol: v.tol,
+      };
+      if (r.motivo === 'PARADA_INTERVALO') {
         const c = r.passos[r.passos.length - 1];
-        resultado.convergiu = false;
-        resultado.motivo = 'DESCONTINUIDADE';
-        resultado.raizCertificada = false;
-        return { passos: r.passos, resultado, codigoErro: 'DESCONTINUIDADE',
-          erro: `Heurística, não uma certificação de raiz: o intervalo encolheu perto de x = ${fmt(c.c)}, mas |f| cresceu (f(c) = ${fmt(c.fc)}). Sem continuidade, fechar o intervalo não prova raiz (pode ser um polo). Esta heurística só olha |f| crescer em pelo menos 6 passos; não vê salto sem explosão e pode não disparar se a tolerância parar cedo. Confira se f é contínua; este ponto não é apresentado como raiz.` };
+        const cresceu = pareceCrescimentoDeModulo(r.passos, v.fa, v.fb);
+        const obs = cresceu ? ' Observação: |f| cresceu em alguns passos. Isso não identifica todo salto ou polo.' : '';
+        return { passos: r.passos, resultado, codigoErro: 'PARADA_INTERVALO',
+          erro: `Parada só pelo tamanho do intervalo, em c = ${fmt(c.c)}, com f(c) = ${fmt(c.fc)}. Vale como aproximação de raiz somente se f for contínua no intervalo. Não é uma certificação incondicional de raiz.${obs}` };
       }
       if (!r.convergiu) {
         const msg = v.maxIter === 1
@@ -130,12 +135,10 @@
   }
 
   /**
-   * Bissecção sobre um polo (ex.: tan x perto de π/2): f troca de sinal sem ter raiz, e |f(c)|
-   * CRESCE enquanto o intervalo encolhe. Numa raiz legítima |f(c)| tende a 0, mesmo com f' grande.
-   * Critério: |f(c)| final > 10·max(|f(a0)|, |f(b0)|) E |f(c)| final > 10·|f(c1)| E a média de |f(c)|
-   * nas 3 últimas iterações é maior que nas 3 primeiras.
+   * Observação auxiliar, não um detector de descontinuidade. A parada por intervalo
+   * já é condicional à continuidade mesmo quando isto não dispara.
    */
-  function pareceDescontinuidade(passos, fa0, fb0) {
+  function pareceCrescimentoDeModulo(passos, fa0, fb0) {
     if (passos.length < 6) return false;
     const m = (lista) => lista.reduce((s, p) => s + Math.abs(p.fc), 0) / lista.length;
     const fim = Math.abs(passos[passos.length - 1].fc);
@@ -172,40 +175,6 @@
     return crescendo >= 4 ? 'DIVERGENCIA' : 'NAO_CONVERGIU';
   }
 
-  // Newton converge quadraticamente em raízes simples; se a razão entre erros
-  // seguidos fica estável (~constante < 1), a convergência é linear (raiz múltipla).
-  function convergenciaLinear(passos) {
-    if (passos.length < 5) return false;
-    const e = passos.slice(-4).map((s) => s.erro);
-    const razoes = [e[1] / e[0], e[2] / e[1], e[3] / e[2]];
-    // BUG-32: só a fase final. Razões estáveis (linear, ≈ (m−1)/m) e sem
-    // aceleração quadrática no fim (a última razão não despenca).
-    return razoes.every((q) => q > 0.2 && q < 0.95) && razoes[2] >= 0.7 * razoes[0];
-  }
-  // BUG-32: relativo + raiz em 0 (ex.: x³). Últimos 6 passos com |x| decrescendo
-  // monotonamente e erro relativo estagnado (≥ 0,9× o de 5 passos antes).
-  function raizEmZeroRelativo(passos, f) {
-    if (passos.length < 6 || typeof f !== 'function') return false;
-    const u = passos.slice(-6), ax = u.map((s) => Math.abs(s.xNovo));
-    const decresce = ax.every((v, i) => i === 0 || v < ax[i - 1]);
-    const e0 = u[0].erroCriterio, e5 = u[5].erroCriterio;
-    if (!(decresce && e0 != null && e5 != null && e5 >= 0.9 * e0)) return false;
-    let fRef = 0;
-    for (const s of passos) {
-      const y = f(s.x);
-      if (Number.isFinite(y)) fRef = Math.max(fRef, Math.abs(y));
-    }
-    const f0 = f(0);
-    // 1e−6·(x²+1) tem mínimo 1e−6 em 0: não é raiz. x³ tem f(0)=0.
-    if (!Number.isFinite(f0) || Math.abs(f0) > 1e-8 * Math.max(fRef, 1e-300)) return false;
-    const xU = u[5].xNovo;
-    if (!Number.isFinite(xU) || xU === 0) return Math.abs(f0) === 0;
-    const fU = f(xU), fPerto = f(xU * 1e-6);
-    // x³−1e−18: o sinal troca entre o iterado e um ponto bem mais perto de 0.
-    if (Number.isFinite(fU) && Number.isFinite(fPerto) && fU !== 0 && fPerto !== 0 && (fU < 0) !== (fPerto < 0)) return false;
-    return true;
-  }
-
   const MENSAGENS_NEWTON = {
     DERIVADA_ZERO: (x) => `Derivada ≈ 0 em x = ${fmt(x)}: a tangente é horizontal e não cruza o eixo x. Tente outro x0.`,
     DIVERGENCIA: () => 'O método divergiu (|x| ou o erro cresceu demais). Tente um x0 mais perto da raiz.',
@@ -213,7 +182,6 @@
     NAO_CONVERGIU: (x, maxIter) => (maxIter === 1
       ? 'Foi dado apenas 1 passo de Newton e a tolerância não foi atingida. '
       : 'Máximo de iterações atingido sem convergir. ') + 'Aumente o máximo de iterações ou escolha um x0 mais perto da raiz.',
-    RAIZ_EM_ZERO_CRITERIO_RELATIVO: (x) => `Os iterados convergem para x = 0, uma raiz múltipla (último x = ${fmt(x)}); o erro relativo |Δx|/|x| não diminui quando a raiz é 0 (fica em ≈ 0,5). Use o critério absoluto.`,
     FUNCAO_NAO_DEFINIDA: (x) => `f ou f' não está definida em x = ${fmt(x)} (o passo saiu do domínio de f). Tente outro x0.`,
     DERIVADA_NAO_FINITA: (x) => `Em x = ${fmt(x)}, f está definida, mas f' não é finita: a derivada explode, não é uma tangente horizontal. Tente um x0 mais perto da raiz.`,
   };
@@ -262,6 +230,19 @@
     return null;
   }
 
+  function mensagemLimiteNewton(v, passos) {
+    const prefixo = v.maxIter === 1
+      ? 'Foi dado apenas 1 passo de Newton e a tolerância não foi atingida. '
+      : 'Máximo de iterações atingido sem convergir. ';
+    const ult = passos[passos.length - 1];
+    if (!ult || !Number.isFinite(ult.xNovo)) {
+      return prefixo + 'Aumente o máximo de iterações ou escolha um x0 mais perto da raiz.';
+    }
+    const fv = Number.isFinite(ult.xNovo) ? v.f(ult.xNovo) : ult.fx;
+    const dados = Number.isFinite(fv) ? `, f(x) = ${fmt(fv)}` : '';
+    return `${prefixo}Último x = ${fmt(ult.xNovo)}${dados}. Esse valor não é raiz. Aumente o máximo de iterações ou escolha outro x0.`;
+  }
+
   function executarNewton(p) {
     return executarComSeguranca(function (avisos) {
       const v = validarNewton(p, avisos);
@@ -295,8 +276,6 @@
         const formula = v.tipoDerivada === 'numerica' ? '' : ` (f'(x) = ${v.derivadaTexto})`;
         erroDominio = `Em x = ${fmt(r.raiz)}, f está definida, mas f' não é finita${formula}: a derivada explode, não é uma tangente horizontal. Tente um x0 mais perto da raiz.`;
       }
-      // BUG-32: o desfecho vira RAIZ_EM_ZERO_CRITERIO_RELATIVO (erro; raiz sugerida = último x).
-      if (v.criterio === 'relativo' && /^(DERIVADA_ZERO|NAO_CONVERGIU|MAX_ITERACOES)$/.test(codigo || r.motivo) && raizEmZeroRelativo(passos, v.f)) codigo = 'RAIZ_EM_ZERO_CRITERIO_RELATIVO';
       // Salto grande: f'(x) pequena manda x para longe (|Δx| > 5·max(1, |x0|)). Avisa só o 1º.
       const escala = 5 * Math.max(1, Math.abs(v.x0));
       const salto = passos.find((s) => Math.abs(s.xNovo - s.x) > escala);
@@ -304,15 +283,10 @@
         const k = salto.k, F = Metodos.fmtBR;
         avisar(avisos, 'SALTO_GRANDE', `Salto grande na iteração ${k + 1}: f'(x${k}) = ${F(salto.dfx)} é pequena, e x foi de ${F(salto.x)} para x${k + 1} = ${F(salto.xNovo)}.`);
       }
-      if (r.motivo === 'RAIZ_EXATA') {
-        const dR = v.df(r.raiz), d0 = v.df(v.x0);
-        const rel = Number.isFinite(d0) && Math.abs(d0) > 0 ? Math.abs(dR) / Math.abs(d0) : 0;
-        // 1e−20·(x−1) tem derivada constante e pequena: não é raiz múltipla.
-        if (dR === 0 || (Number.isFinite(dR) && rel < 1e-8 && Math.abs(dR) <= 1e-12 * Math.max(1, Math.abs(r.raiz)))) {
-          avisar(avisos, 'RAIZ_MULTIPLA', 'A derivada também é zero na raiz (raiz múltipla).');
-        }
+      // Multiplicidade só com zero explícito de f e de f' no mesmo x. Não infere pela escala nem pelos iterados.
+      if (r.motivo === 'RAIZ_EXATA' && v.df(r.raiz) === 0) {
+        avisar(avisos, 'RAIZ_MULTIPLA', `f(${fmt(r.raiz)}) = 0 e f'(${fmt(r.raiz)}) = 0: zero e derivada nula observados neste ponto.`);
       }
-      else if ((r.convergiu || codigo === 'RAIZ_EM_ZERO_CRITERIO_RELATIVO') && convergenciaLinear(passos)) avisar(avisos, 'CONVERGENCIA_LENTA', 'Convergência lenta (linear): provável raiz múltipla, onde f e f\' se anulam juntas.');
       avisarFallback(avisos, passos, v.tol, r.motivo);
       const resultado = {
         raiz: /^(DIVERGENCIA|FUNCAO_NAO_DEFINIDA|DERIVADA_NAO_DEFINIDA|DERIVADA_NAO_FINITA)$/.test(codigo) ? null : r.raiz,
@@ -320,16 +294,7 @@
         criterio: v.criterio, tol: v.tol, motivo: codigo || r.motivo, derivadaNumerica: v.tipoDerivada === 'numerica', tipoDerivada: v.tipoDerivada, derivadaTexto: v.derivadaTexto,
       };
       let erro = codigo ? (erroDominio || MENSAGENS_NEWTON[codigo](r.raiz, v.maxIter)) : null;
-      if (codigo === 'NAO_CONVERGIU' && passos.length) {
-        const ult = passos[passos.length - 1];
-        const fv = Number.isFinite(ult.xNovo) ? v.f(ult.xNovo) : ult.fx;
-        if (Number.isFinite(fv) && Math.abs(fv) > 1e-2) {
-          erro = (v.maxIter === 1
-            ? 'Foi dado apenas 1 passo de Newton e a tolerância não foi atingida. '
-            : 'Máximo de iterações atingido sem convergir. ') +
-            `O último x = ${fmt(ult.xNovo)} não é raiz: f(x) = ${fmt(fv)} ainda está longe de zero. Aumente o máximo de iterações ou escolha outro x0; se f não troca de sinal, pode não haver raiz real.`;
-        }
-      }
+      if (codigo === 'NAO_CONVERGIU') erro = mensagemLimiteNewton(v, passos);
       return { passos, resultado, erro, codigoErro: codigo };
     });
   }

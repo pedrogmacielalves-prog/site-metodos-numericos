@@ -17,7 +17,7 @@
     if (res.erro && id === 'newton' && res.codigoErro === 'OSCILACAO' && window.Visual.cicloNoLimite(res.passos)) {
       var u = res.passos[res.passos.length - 1];
       h += toast('aviso', 'Parou no limite de precisão do computador (precisão dupla, ~16 dígitos): xₖ alterna entre dois números vizinhos que o computador não consegue aproximar mais, então o ' + ((res.criterio || 'relativo') === 'relativo' ? 'ε' : 'tol') + ' pedido não pôde ser alcançado. Raiz ≈ ' + window.Visual.oito(u.xNovo) + ' após ' + res.passos.length + ' iterações; este é o resultado mais preciso possível em precisão dupla.');
-    } else if (res.erro) h += toast(res.codigoErro === 'NAO_CONVERGIU' ? 'aviso' : 'erro', res.erro);
+    } else if (res.erro) h += toast(res.codigoErro === 'NAO_CONVERGIU' || res.codigoErro === 'PARADA_INTERVALO' ? 'aviso' : 'erro', res.erro);
     else if (res.resultado) h += toast('sucesso', resumo(res), id === 'gauss' ? tabelaSolucao(res) : '');
     (res.avisos || []).forEach(function (a) { h += toast('aviso', a); });
     if (id === 'gauss' && window.Visual.pivo) h = h.replace(/\[(!|i|⇅)\] /g, function (_, g) { return window.Visual.pivo.glifo({ '!': 'obrigatoria', i: 'recomendada', '⇅': 'classica' }[g]) + ' '; });
@@ -115,8 +115,9 @@
 
   var abas = {
     bisseccao: montarAba('bisseccao', dados, function (r) { var n = r.passos.length, est = r.resultado.iteracoesEstimadas, ultimo = r.passos[n - 1];
-      var mot = r.resultado.motivo, exata = mot ? mot === 'RAIZ_EXATA' : (n === 0 || (ultimo && ultimo.fc === 0));
-      return 'Raiz ≈ ' + window.Visual.oito(r.resultado.raiz) + ' após ' + plural(n, 'iteração', 'iterações') + (exata ? ' (raiz exata encontrada; critério de parada não precisou ser atingido).' : (est ? ' (estimativa teórica: ' + est + ').' : '.')) + (exata ? '' : ' Parou porque ' + motivoCrit('bisseccao', r) + '.') + limite('bisseccao', r); }),
+      var mot = r.resultado.motivo, exata = !!(r.resultado.zeroObservado || mot === 'RAIZ_EXATA' || (n === 0 && ultimo && ultimo.fc === 0));
+      if (mot === 'PARADA_INTERVALO' || r.codigoErro === 'PARADA_INTERVALO') return r.erro || 'Parada só pelo intervalo, condicional à continuidade de f.';
+      return (exata ? 'Zero observado em x = ' : 'Raiz ≈ ') + window.Visual.oito(r.resultado.raiz) + ' após ' + plural(n, 'iteração', 'iterações') + (exata ? ' (f nesse ponto é 0).' : (est ? ' (estimativa teórica: ' + est + ').' : '.')) + (exata ? '' : ' Parou porque ' + motivoCrit('bisseccao', r) + '.') + limite('bisseccao', r); }),
     newton: montarAba('newton', dados, function (r) { var n = r.passos.length, u = r.passos[n - 1], porPasso = r.resultado.motivo ? r.resultado.motivo !== 'RAIZ_EXATA' : (u && isFinite(u.erro) && u.fx !== 0);
       return 'Raiz ≈ ' + window.Visual.oito(r.resultado.raiz) + ' após ' + plural(n, 'iteração', 'iterações') + ({ simbolica: ' (derivada simbólica).', numerica: ' (derivada numérica).', fornecida: ' (derivada informada).' }[r.resultado.tipoDerivada] || '.') + (porPasso ? ' Parou porque ' + motivoCrit('newton', r) + '.' : ' Parou porque f(x) = 0.') + limite('newton', r); }),
     gauss: montarAba('gauss', function (form) {
@@ -361,24 +362,70 @@
     var ajuda = $('#ajuda-n');
     if (ajuda) ajuda.textContent = 'A é uma matriz n×n e b é um vetor n×1. n inteiro de ' + min + ' a ' + max + ' (limite prático nos ambientes testados). Até ' + GE.MAX_GRADE + ' a grade é editável; acima disso use Colar, Aleatório ou Exemplo e o mapa de cores.';
   }
+  var reducaoPendente = null;
+  function textoCelula(v) { return v == null ? '' : String(v).trim(); }
+  function reducaoEscondeDado(novo) {
+    var M = lerEntrada(), i, j;
+    for (i = 0; i < nAtual; i++) for (j = 0; j <= nAtual; j++) {
+      if (i < novo && (j < novo || j === nAtual)) continue;
+      if (textoCelula(M[i] && M[i][j]) !== '') return true;
+    }
+    return false;
+  }
+  function aplicarN(n) {
+    gravarAcervo();
+    montarEntrada(n, matrizDoAcervo(n));
+    abas.gauss.marcarDesatualizado(true);
+  }
+  function fecharConfirmacaoN() {
+    reducaoPendente = null;
+    var box = $('#confirma-n');
+    if (box) box.hidden = true;
+    formG.n.value = nAtual;
+  }
+  function pedirReducao(n) {
+    reducaoPendente = n;
+    var box = $('#confirma-n');
+    $('#confirma-n-texto').textContent = 'Reduzir de ' + nAtual + ' para ' + n + ' esconde linhas ou colunas que têm valor. Cancelar mantém n e todos os coeficientes de A e de b.';
+    box.hidden = false;
+    formG.n.value = nAtual;
+    $('#confirma-n-cancelar').focus();
+  }
   function mudarN(v) {
+    if (reducaoPendente != null) { formG.n.value = nAtual; return; }
     var r = GE.limitarN(v);
+    if (r.n === nAtual) {
+      if (r.ajustado) $('#msg-gauss').innerHTML = toast('aviso', 'n deve ser inteiro entre ' + GE.MIN + ' e ' + GE.MAX + '; usei n = ' + r.n + '.');
+      sincronizarN();
+      return;
+    }
+    if (r.n < nAtual && reducaoEscondeDado(r.n)) { pedirReducao(r.n); return; }
     if (r.ajustado) $('#msg-gauss').innerHTML = toast('aviso', 'n deve ser inteiro entre ' + GE.MIN + ' e ' + GE.MAX + '; usei n = ' + r.n + '.');
-    if (r.n !== nAtual) { gravarAcervo(); montarEntrada(r.n, matrizDoAcervo(r.n)); abas.gauss.marcarDesatualizado(true); } else sincronizarN();
+    aplicarN(r.n);
   }
   formG.n.addEventListener('change', function () { mudarN(formG.n.value); });
+  formG.n.addEventListener('blur', function () {
+    if (reducaoPendente != null) return;
+    if (String(formG.n.value) !== String(nAtual)) mudarN(formG.n.value);
+  });
   formG.n.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); mudarN(formG.n.value); } });
-  $('#n-menos').addEventListener('click', function () { mudarN(nAtual - 1); });
-  $('#n-mais').addEventListener('click', function () { mudarN(nAtual + 1); });
+  $('#n-menos').addEventListener('click', function () { if (reducaoPendente == null) mudarN(nAtual - 1); });
+  $('#n-mais').addEventListener('click', function () { if (reducaoPendente == null) mudarN(nAtual + 1); });
+  $('#confirma-n-cancelar').addEventListener('click', function () { fecharConfirmacaoN(); formG.n.focus(); });
+  $('#confirma-n-ok').addEventListener('click', function () {
+    var n = reducaoPendente;
+    fecharConfirmacaoN();
+    if (n != null && n < nAtual) aplicarN(n);
+  });
   function gerar(n) { // prefere o gerador do núcleo (Metodos.gerarSistema), senão o utilitário de interface
     if (typeof M_.gerarSistema === 'function') { try { var r = M_.gerarSistema(n, Date.now() % 100000);
       if (r && r.A && r.b) return r.A.map(function (l, i) { return l.concat([r.b[i]]); }); if (r && r.matriz) return r.matriz; if (Array.isArray(r)) return r; } catch (e) {} }
     return GE.aleatorio(n).matriz;
   }
-  function substituirSistema(n, valores, fonte) { zerarAcervo(); montarEntrada(n, valores, fonte); gravarAcervo(); }
+  function substituirSistema(n, valores, fonte) { fecharConfirmacaoN(); zerarAcervo(); montarEntrada(n, valores, fonte); gravarAcervo(); }
   $('#exemplo-gauss').addEventListener('click', function () { avisoColar.hidden = true; pendente = null; substituirSistema(nAtual, exemplo(nAtual), 'exemplo'); abas.gauss.executar(); });
   $('#aleatorio-gauss').addEventListener('click', function () { avisoColar.hidden = true; pendente = null; substituirSistema(nAtual, gerar(nAtual), 'aleatório, solução inteira'); abas.gauss.executar(); });
-  $('#limpar-gauss').addEventListener('click', function () { avisoColar.hidden = true; pendente = null; origem = ''; zerarAcervo(); montarEntrada(nAtual, null); $('#msg-gauss').innerHTML = ''; abas.gauss.marcarDesatualizado(true); var p = $(INPUTS); (p || $('#colar-gauss')).focus(); });
+  $('#limpar-gauss').addEventListener('click', function () { fecharConfirmacaoN(); avisoColar.hidden = true; pendente = null; origem = ''; zerarAcervo(); montarEntrada(nAtual, null); $('#msg-gauss').innerHTML = ''; abas.gauss.marcarDesatualizado(true); var p = $(INPUTS); (p || $('#colar-gauss')).focus(); });
   /* Colar A e b (separados ou aumentada): valida contra o n escolhido; nunca muda n sozinho */
   var painelColar = $('#painel-colar'), avisoColar = $('#aviso-colar'), pendente = null;
   function modoColar() { return (formG.querySelector('[name=modo-colar]:checked') || {}).value || 'separado'; }

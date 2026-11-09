@@ -372,7 +372,8 @@
     const hist = {
       n: n,
       fotos: function () { return checks.length; },
-      tamanho: function () { return checks.length * n * (n + 1) * 8; },
+      tamanho: function () { return (checks.length + (trabalho.M ? 1 : 0)) * n * (n + 1) * 8; },
+      bytesReservados: function () { return (checks.length + 1) * n * (n + 1) * 8; },
       em: function (alvo) {
         let ck = checks[0];
         for (let i = 0; i < checks.length; i++) if (checks[i].k <= (alvo == null ? -1 : alvo) && checks[i].M.length) ck = checks[i];

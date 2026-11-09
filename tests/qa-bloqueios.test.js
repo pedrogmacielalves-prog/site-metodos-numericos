@@ -25,13 +25,32 @@ test('BUG-43 fmtSolucao não zera componente legítimo', () => {
 });
 
 test('BUG-47 não inventa raiz zero nem múltipla', () => {
-  const a = E.newton({ f: '1e-6*(x^2+1)', x0: 100, tol: 1e-6, maxIter: 6, criterio: 'relativo' });
-  assert.equal(a.codigoErro, 'NAO_CONVERGIU');
-  assert.match(a.erro, /Aumente/);
-  assert.ok(!a.avisos.some((s) => /raiz múltipla|convergem para x = 0/.test(s)));
-  const b = E.newton({ f: 'x^3-1e-18', x0: 1, tol: 1e-6, maxIter: 9, criterio: 'relativo' });
-  assert.notEqual(b.codigoErro, 'RAIZ_EM_ZERO_CRITERIO_RELATIVO');
-  assert.ok(!b.avisos.some((s) => /raiz múltipla/.test(s)));
+  const proibido = /múltipla|convergem para x\s*=\s*0|raiz em zero|RAIZ_EM_ZERO/i;
+  const semRaiz = [
+    ['x^2+1', 1e6, 6], ['1*(x^2+1)', 1e6, 6], ['1e-6*(x^2+1)', 100, 6],
+    ['1e6*(x^2+1)', -1e6, 6], ['x^2+1', 1, 1], ['x^2+1', 1e-4, 2],
+    ['x^2+1', 50, 9], ['cos(x)+2', 0, 6], ['exp(x)', 0, 6], ['x^2+1e-12', 1e3, 4],
+  ];
+  for (const [f, x0, maxIter] of semRaiz) {
+    for (const criterio of ['relativo', 'absoluto']) {
+      const r = E.newton({ f, x0, tol: 1e-6, maxIter, criterio });
+      const texto = (r.erro || '') + ' ' + (r.avisos || []).join(' ');
+      assert.equal(r.resultado.convergiu, false, f + ' ' + x0 + ' ' + maxIter + ' ' + criterio);
+      assert.notEqual(r.codigoErro, 'RAIZ_EM_ZERO_CRITERIO_RELATIVO');
+      assert.doesNotMatch(texto, proibido, texto);
+      if (r.codigoErro === 'NAO_CONVERGIU') {
+        assert.match(r.erro, /Último x/);
+        assert.match(r.erro, /f\(x\)/);
+        assert.match(r.erro, /não é raiz/);
+      }
+    }
+  }
+  const cubo = E.newton({ f: 'x^3-1e-18', x0: 1, tol: 1e-6, maxIter: 9, criterio: 'relativo' });
+  assert.notEqual(cubo.codigoErro, 'RAIZ_EM_ZERO_CRITERIO_RELATIVO');
+  assert.ok(!(cubo.avisos || []).some((s) => /múltipla/.test(s)));
+  const exata = E.newton({ f: 'x^2', x0: 0, tol: 1e-8, maxIter: 5 });
+  assert.equal(exata.resultado.convergiu, true);
+  assert.ok(exata.avisos.some((s) => /f'\(0\) = 0/.test(s)));
 });
 
 test('BUG-48 derivada 1 com f grande não é horizontal', () => {
@@ -41,15 +60,39 @@ test('BUG-48 derivada 1 com f grande não é horizontal', () => {
   assert.ok(Math.abs(r.resultado.raiz + 1e20) / 1e20 < 1e-6);
 });
 
-test('BUG-49 polos não são raiz certificada', () => {
-  const a = E.bisseccao({ f: '1/(x-0.3)', a: 0, b: 1, tol: 1e-8, maxIter: 80, criterio: 'absoluto' });
-  const b = E.bisseccao({ f: 'x/2-tan(x)', a: 1, b: 2, tol: 0.01, maxIter: 50 });
-  for (const r of [a, b]) {
-    assert.equal(r.codigoErro, 'DESCONTINUIDADE');
+test('BUG-49 parada por intervalo não certifica raiz', () => {
+  const casos = [
+    { f: 'x/abs(x)', a: -0.2, b: 0.9, tol: 1e-8, maxIter: 80, criterio: 'absoluto' },
+    { f: '1/(x-0.3)', a: 0, b: 1, tol: 0.1, maxIter: 80, criterio: 'absoluto' },
+    { f: '1/(x-0.3)', a: 0, b: 1, tol: 1e-8, maxIter: 80, criterio: 'absoluto' },
+    { f: 'x/2-tan(x)', a: 1, b: 2, tol: 0.01, maxIter: 50 },
+  ];
+  for (const c of casos) {
+    const r = E.bisseccao(c);
+    assert.equal(r.codigoErro, 'PARADA_INTERVALO', c.f);
     assert.equal(r.resultado.convergiu, false);
-    assert.match(r.erro, /não uma certificação/);
-    assert.match(r.erro, /heurística/i);
+    assert.equal(r.resultado.raizCertificada, false);
+    assert.equal(r.resultado.zeroObservado, false);
+    assert.equal(r.resultado.hipotese, 'continuidade');
+    assert.match(r.erro, /contínua/);
+    assert.match(r.erro, /Não é uma certificação incondicional/);
+    assert.doesNotMatch(r.erro, /Raiz ≈/);
   }
+  const continua = E.bisseccao({ f: 'x^2-2', a: 1, b: 2, tol: 1e-8, maxIter: 80, criterio: 'absoluto' });
+  assert.equal(continua.codigoErro, 'PARADA_INTERVALO');
+  assert.equal(continua.resultado.convergiu, false);
+  assert.ok(Math.abs(continua.resultado.raiz - Math.SQRT2) < 1e-7);
+  const zero = E.bisseccao({ f: 'x', a: -1, b: 1, tol: 1e-8, maxIter: 10, criterio: 'absoluto' });
+  assert.equal(zero.codigoErro, null);
+  assert.equal(zero.resultado.convergiu, true);
+  assert.equal(zero.resultado.zeroObservado, true);
+  assert.equal(zero.resultado.raiz, 0);
+  const extremo = E.bisseccao({ f: 'x', a: 0, b: 1, tol: 1e-6, maxIter: 5 });
+  assert.equal(extremo.resultado.zeroObservado, true);
+  assert.equal(extremo.resultado.convergiu, true);
+  const saltoNoMeio = E.bisseccao({ f: '(x-0.5)/abs(x-0.5)', a: 0, b: 1, tol: 1e-6, maxIter: 40, criterio: 'absoluto' });
+  assert.equal(saltoNoMeio.codigoErro, 'FUNCAO_NAO_DEFINIDA');
+  assert.equal(saltoNoMeio.resultado, null);
 });
 
 test('BUG-50 ponto médio com extremos opostos enormes', () => {
@@ -106,6 +149,22 @@ test('posto inteiro exato continua infinitas; perturbação de 1 ulp não', () =
   assert.equal(inf.resultado.postoAumentada, 2);
   const q = E.gauss({ A: [[1, 1], [1, 1 + 2e-16]], b: [1, 1] });
   assert.equal(q.resultado.classificacao, 'quase_singular');
+});
+
+test('histórico fatiado conta o buffer depois de reconstruir', () => {
+  const n = 200;
+  const A = Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => (i === j ? 2 : 0)));
+  const b = A.map((_, i) => 1);
+  const t = M.criarEliminacao(A, b, 'automatico');
+  let p; do { p = t.avancar(n); } while (!p.feito);
+  const h = M.passosDeMotor(A, b, t.exportar()).historico;
+  const fotos = new Set();
+  const antes = h.tamanho();
+  let k = 0;
+  while (k < n && h.em(k) && h.tamanho() === antes) k++;
+  if (k < n) assert.equal(h.tamanho(), antes + n * (n + 1) * 8);
+  assert.equal(h.bytesReservados(), (h.fotos() + 1) * n * (n + 1) * 8);
+  assert.ok(fotos);
 });
 
 test('orçamento de fotos cabe em 48 MiB, com buffer de reconstrução', () => {

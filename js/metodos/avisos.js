@@ -33,10 +33,10 @@
         {
           id: 'descontinuidade',
           titulo: 'Descontinuidade (polo) no intervalo',
-          quando: 'f troca de sinal num polo sem ter raiz, como x/2 − tan(x) em [1, 2], que contém π/2.',
-          solucao: 'Escolha um intervalo em que f seja contínua; o site recusa o resultado se |f(c)| crescer.',
-          codigos: ['DESCONTINUIDADE'],
-          mensagem: 'Provável descontinuidade, não raiz: o intervalo encolheu perto de x = 1,57068, mas |f(c)| cresceu (f(c) = −8501,47). f deve ter um polo ali (troca de sinal sem raiz). Escolha um intervalo onde f seja contínua.',
+          quando: 'A bissecção para porque o intervalo ficou pequeno. Sem continuidade, isso não prova raiz: x/|x| em [−0,2, 0,9] e 1/(x−0,3) em [0, 1] trocam de sinal sem raiz.',
+          solucao: 'Confira se f é contínua no intervalo. Zero só é certificado quando f(c) = 0 foi observado.',
+          codigos: ['PARADA_INTERVALO'],
+          mensagem: 'Parada só pelo tamanho do intervalo. Vale como aproximação de raiz somente se f for contínua no intervalo. Não é uma certificação incondicional de raiz.',
         },
         {
           id: 'funcao-nao-definida',
@@ -150,8 +150,8 @@
           id: 'criterio-parada',
           titulo: 'Critério de parada: tol × ε',
           quando: 'Absoluto (tol, unidade de x) falha com x grande; relativo (ε = |Δx|/|x|, adimensional) falha se a raiz é 0 (|Δx|/|x| não cai; x³: 0,5).',
-          solucao: 'Se |x| < 1,000e−12, usa |Δx| < ε e avisa. Se x → 0 sem o erro cair, para com RAIZ_EM_ZERO: use absoluto.',
-          codigos: ['CRITERIO_RELATIVO_PERTO_DE_ZERO', 'RAIZ_EM_ZERO_CRITERIO_RELATIVO'],
+          solucao: 'Se |x| < 1,000e−12, o critério relativo usa |Δx| e avisa. Esgotar as iterações não conclui raiz em zero nem multiplicidade.',
+          codigos: ['CRITERIO_RELATIVO_PERTO_DE_ZERO', 'NAO_CONVERGIU'],
         },
         {
           id: 'max-iteracoes',
@@ -163,11 +163,11 @@
         },
         {
           id: 'raiz-multipla',
-          titulo: 'Raiz múltipla (convergência lenta)',
-          quando: 'f e f\' se anulam juntas, como (x − 1)^2: a convergência vira linear com razão (m − 1)/m.',
-          solucao: 'Aceite mais iterações ou use Newton modificado: x − m·f/f\'.',
-          codigos: ['CONVERGENCIA_LENTA', 'RAIZ_MULTIPLA'],
-          mensagem: 'Convergência lenta (linear): provável raiz múltipla, onde f e f\' se anulam juntas.',
+          titulo: 'Zero e derivada nula observados',
+          quando: 'f(x) = 0 e f\'(x) = 0 no mesmo ponto, como x² com x0 = 0.',
+          solucao: 'O aviso só aparece quando os dois zeros foram calculados. Passos que apenas se aproximam de zero não bastam.',
+          codigos: ['RAIZ_MULTIPLA'],
+          mensagem: 'f(0) = 0 e f\'(0) = 0: zero e derivada nula observados neste ponto.',
         },
       ],
       resumo: {

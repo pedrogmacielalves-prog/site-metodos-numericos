@@ -111,6 +111,14 @@
             <button type="button" class="btn btn--secundario btn--icone" id="n-mais" aria-label="Aumentar n" aria-controls="n-gauss">+</button>
           </div>
           <p class="campo__ajuda" id="ajuda-n">A é uma matriz n×n e b é um vetor n×1.</p>
+          <div id="confirma-n" class="confirma-n" role="alertdialog" aria-modal="true" aria-labelledby="confirma-n-titulo" hidden>
+            <p id="confirma-n-titulo" class="toast__titulo">Reduzir n esconde coeficientes</p>
+            <p id="confirma-n-texto"></p>
+            <div class="acoes">
+              <button type="button" class="btn btn--secundario" id="confirma-n-cancelar">Cancelar</button>
+              <button type="button" class="btn btn--primario" id="confirma-n-ok">Reduzir mesmo assim</button>
+            </div>
+          </div>
           <p class="dimensao-sistema" id="dimensao-gauss">Sistema 3×3 · A: 3×3, b: 3×1</p>
         </div>
         <fieldset class="campo campo-pivo campo-seg"><legend class="campo__rotulo">Pivoteamento</legend><div class="segmentado" id="pivoteamento-gauss" role="radiogroup" aria-describedby="ajuda-pivo"><input type="radio" id="piv-auto" name="pivoteamento" value="automatico" checked><label for="piv-auto">Automático</label><input type="radio" id="piv-sempre" name="pivoteamento" value="sempre"><label for="piv-sempre">Sempre</label><input type="radio" id="piv-nunca" name="pivoteamento" value="nunca"><label for="piv-nunca">Nunca</label></div><p class="campo__ajuda" id="ajuda-pivo"></p></fieldset>

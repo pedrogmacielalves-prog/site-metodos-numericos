@@ -307,6 +307,9 @@ fieldset.entrada-bloco > legend { padding: 0; float: none; }
 #rolagem-entrada input[aria-invalid="true"] { outline: 3px solid var(--cor-erro); box-shadow: inset 0 0 0 2px var(--cor-erro); }
 .resumo-erros { margin: var(--esp-2) 0 0; padding: var(--esp-2) var(--esp-3); border: 2px solid var(--cor-erro); border-radius: var(--raio-sm); background: var(--cor-superficie); }
 .resumo-erros[hidden] { display: none; }
+.confirma-n { margin: var(--esp-2) 0 0; padding: var(--esp-3); border: 1px solid var(--cor-borda); border-left: 4px solid var(--cor-aviso); border-radius: var(--raio-md); background: var(--cor-fundo-2); }
+.confirma-n[hidden] { display: none; }
+.confirma-n p { margin: 0 0 var(--esp-2); }
 .resumo-erros button { font: inherit; color: var(--cor-erro); background: transparent; border: 0; padding: 0; text-align: left; cursor: pointer; text-decoration: underline; }
 .acoes-calcular { margin-top: var(--esp-3); }
 .progresso-tarefa { display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-2); margin: 0 0 var(--esp-3); padding: var(--esp-2) var(--esp-3); border: 1px solid var(--cor-borda-forte); border-radius: var(--raio-md); background: var(--cor-superficie-2); }
