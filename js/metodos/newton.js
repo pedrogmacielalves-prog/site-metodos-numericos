@@ -24,8 +24,8 @@
       // @etapa:avaliaDerivada — inclinação da tangente em x
       const dfx = df(x);
 
-      // Raiz exata antes do limite de divergência (x = −1e20 pode ser a raiz).
-      if (fx === 0) return fim(true, 'RAIZ_EXATA');
+      // f(x) = 0 em precisão dupla: parada observada, antes de chamar isso de divergência.
+      if (fx === 0) return fim(true, 'ZERO_PRECISAO_DUPLA');
       // f não finita não é tangente horizontal.
       if (!Number.isFinite(fx)) return fim(false, 'FUNCAO_NAO_DEFINIDA');
 
@@ -46,23 +46,30 @@
 
       // @etapa:criterioParada — o passo ficou menor que tol?
       const crit = Metodos.testeParada(criterio, xNovo, x, erro, tol);
-      const parou = crit.parou;
+      // O candidato recém-calculado é visto antes de esgotar o limite de passos.
+      let fNovo = NaN;
+      if (Number.isFinite(xNovo)) { try { fNovo = f(xNovo); } catch (e) { fNovo = NaN; } }
+      const zeroNovo = fNovo === 0;
+      const parou = crit.parou || zeroNovo;
       const etapas = ['avaliaDerivada', 'passoNewton'];
       if (parou) etapas.push('criterioParada');
+      const descricao = zeroNovo
+        ? Metodos.textos.newton(k, x, fx, dfx, xNovo, crit, false) + ' f no candidato vale 0 em precisão dupla: zero observado, não certificação matemática.'
+        : Metodos.textos.newton(k, x, fx, dfx, xNovo, crit, crit.parou);
       passos.push({
         k, x, fx, dfx, xNovo, erro, erroRelativo, etapas,
         criterio: crit.criterio, erroCriterio: crit.erro,
         criterioFallback: crit.fallback,
         etapa: parou ? 'criterioParada' : 'passoNewton',
         tangente: { inclinacao: dfx, intercepto: fx - dfx * x },
-        descricao: Metodos.textos.newton(k, x, fx, dfx, xNovo,
-          crit, parou),
+        fNovo, descricao,
       });
 
       x = xNovo;
-
-      // Paramos quando o erro do critério ficou menor que tol.
-      if (parou) return fim(true, 'TOLERANCIA');
+      if (!Number.isFinite(xNovo)) return fim(false, 'DIVERGENCIA');
+      if (!Number.isFinite(fNovo)) return fim(false, 'FUNCAO_NAO_DEFINIDA');
+      if (zeroNovo) return fim(true, 'ZERO_PRECISAO_DUPLA');
+      if (crit.parou) return fim(true, 'TOLERANCIA');
     }
     return fim(false, 'MAX_ITERACOES');
   };

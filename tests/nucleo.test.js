@@ -110,8 +110,10 @@ test('BUG bissecção: sinal sem produto, ponto médio estável', () => {
   const raiz = E.bisseccao({ f: '1e-200*(x-1)', a: 0, b: 2, tol: 1e-6, maxIter: 40, criterio: 'absoluto' });
   assert.equal(raiz.codigoErro, null);
   assert.equal(raiz.resultado.zeroObservado, true);
-  assert.equal(raiz.resultado.convergiu, true);
+  assert.equal(raiz.resultado.raizCertificada, false);
+  assert.equal(raiz.resultado.garantiaMatematica, false);
   assert.equal(raiz.resultado.raiz, 1);
+  assert.match(raiz.avisos.join(' '), /precisão dupla/);
 });
 
 test('BUG Newton: sem raiz falsa e derivada relativa', () => {

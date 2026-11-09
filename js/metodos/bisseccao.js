@@ -50,8 +50,8 @@
         etapa: parou ? 'criterioParada' : 'pontoMedio', etapas,
         descricao: Metodos.textos.bisseccao(manter, parou, crit),
       });
-      // Zero exatamente observado é outro desfecho que encolher o intervalo.
-      if (fc === 0) return fim(true, 'RAIZ_EXATA');
+      // f(c) = 0 na aritmética de 64 bits. É parada por observação, não prova de raiz.
+      if (fc === 0) return fim(true, 'ZERO_PRECISAO_DUPLA');
       // Parada só pelo tamanho do intervalo: não certifica raiz sem continuidade.
       if (crit.parou) return fim(false, 'PARADA_INTERVALO');
       cAnt = c;

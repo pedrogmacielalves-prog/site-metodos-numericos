@@ -56,6 +56,25 @@
   }
   const finito = Number.isFinite;
 
+  /** Parada numérica e garantia matemática são campos diferentes. raizCertificada fica falso: precisão dupla não prova raiz. */
+  function camposDeParada(motivo, base) {
+    const zero = motivo === 'ZERO_PRECISAO_DUPLA';
+    const intervalo = motivo === 'PARADA_INTERVALO';
+    let parada = 'outra';
+    if (zero) parada = 'zero_precisao_dupla';
+    else if (intervalo) parada = 'intervalo';
+    else if (motivo === 'NAO_CONVERGIU' || motivo === 'MAX_ITERACOES') parada = 'limite_iteracoes';
+    else if (motivo === 'TOLERANCIA') parada = 'tolerancia_passo';
+    else if (/^DERIVADA_/.test(motivo || '')) parada = 'derivada';
+    else if (motivo === 'FUNCAO_NAO_DEFINIDA') parada = 'dominio_ou_faixa';
+    else if (motivo === 'DIVERGENCIA') parada = 'divergencia';
+    else if (motivo === 'OSCILACAO') parada = 'oscilacao';
+    return Object.assign({}, base, {
+      motivo, zeroObservado: zero, raizCertificada: false, garantiaMatematica: false,
+      parada, hipotese: intervalo ? 'continuidade' : null,
+    });
+  }
+
   // Envolve uma execução: transforma Falha em { erro, codigoErro } sem lançar exceção.
   // Avisos: `avisos` continua sendo uma lista de textos (compatível); o código estável de
   // cada aviso vai, na mesma ordem, em `codigosAviso` (topo e resultado.codigosAviso).
@@ -100,8 +119,8 @@
       const iteracoesEstimadas = v.criterio === 'relativo' ? null : Math.max(0, Math.ceil(Math.log2((v.b - v.a) / v.tol)));
       if (v.fa === 0 || v.fb === 0) {
         const raiz = v.fa === 0 ? v.a : v.b;
-        avisar(avisos, 'RAIZ_NO_EXTREMO', `O extremo x = ${fmt(raiz)} já é um zero observado; nenhuma iteração foi necessária.`);
-        return { passos: [], resultado: { raiz, fRaiz: 0, iteracoes: 0, convergiu: true, motivo: 'RAIZ_EXATA', zeroObservado: true, raizCertificada: true, hipotese: null, iteracoesEstimadas: null, criterio: v.criterio, tol: v.tol }, erro: null, codigoErro: null };
+        avisar(avisos, 'ZERO_PRECISAO_DUPLA', `Zero observado em precisão dupla no extremo x = ${fmt(raiz)}: f vale 0 nessa aritmética. É a parada do método, não uma certificação matemática de raiz.`);
+        return { passos: [], resultado: camposDeParada('ZERO_PRECISAO_DUPLA', { raiz, fRaiz: 0, iteracoes: 0, convergiu: true, iteracoesEstimadas: null, criterio: v.criterio, tol: v.tol }), erro: null, codigoErro: null };
       }
       const r = Metodos.bisseccao(v.f, v.a, v.b, v.tol, v.maxIter, v.criterio);
       avisarFallback(avisos, r.passos, v.tol, r.motivo);
@@ -110,19 +129,22 @@
         const passos = r.passos.slice(0, ruim);
         return { passos, resultado: null, erro: `f(c) não é finito em c = ${fmt(r.passos[ruim].c)} (função não definida ali).`, codigoErro: 'FUNCAO_NAO_DEFINIDA' };
       }
-      const zeroObservado = r.motivo === 'RAIZ_EXATA';
-      const resultado = {
-        raiz: r.raiz, fRaiz: v.f(r.raiz), iteracoes: r.passos.length, convergiu: zeroObservado, motivo: r.motivo,
-        zeroObservado, raizCertificada: zeroObservado,
-        hipotese: r.motivo === 'PARADA_INTERVALO' ? 'continuidade' : null,
+      const zeroObservado = r.motivo === 'ZERO_PRECISAO_DUPLA';
+      const resultado = camposDeParada(r.motivo, {
+        raiz: r.raiz, fRaiz: v.f(r.raiz), iteracoes: r.passos.length, convergiu: zeroObservado,
         iteracoesEstimadas, criterio: v.criterio, tol: v.tol,
-      };
+      });
+      if (zeroObservado) {
+        avisar(avisos, 'ZERO_PRECISAO_DUPLA', `Zero observado em precisão dupla em x = ${fmt(r.raiz)}: f vale 0 nessa aritmética. É a parada do método, não uma certificação matemática de raiz.`);
+        return { passos: r.passos, resultado, erro: null, codigoErro: null };
+      }
       if (r.motivo === 'PARADA_INTERVALO') {
         const c = r.passos[r.passos.length - 1];
-        const cresceu = pareceCrescimentoDeModulo(r.passos, v.fa, v.fb);
-        const obs = cresceu ? ' Observação: |f| cresceu em alguns passos. Isso não identifica todo salto ou polo.' : '';
+        if (pareceCrescimentoDeModulo(r.passos, v.fa, v.fb)) {
+          avisar(avisos, 'MODULO_CRESCEU', 'Observação: |f| cresceu enquanto o intervalo encolhia. Isso não diagnostica polo nem descontinuidade.');
+        }
         return { passos: r.passos, resultado, codigoErro: 'PARADA_INTERVALO',
-          erro: `Parada só pelo tamanho do intervalo, em c = ${fmt(c.c)}, com f(c) = ${fmt(c.fc)}. Vale como aproximação de raiz somente se f for contínua no intervalo. Não é uma certificação incondicional de raiz.${obs}` };
+          erro: `Parada só pelo tamanho do intervalo, em c = ${fmt(c.c)}, com f(c) = ${fmt(c.fc)}. Vale como aproximação somente se f for contínua no intervalo. Não é certificação matemática de raiz.` };
       }
       if (!r.convergiu) {
         const msg = v.maxIter === 1
@@ -239,6 +261,9 @@
       return prefixo + 'Aumente o máximo de iterações ou escolha um x0 mais perto da raiz.';
     }
     const fv = Number.isFinite(ult.xNovo) ? v.f(ult.xNovo) : ult.fx;
+    if (fv === 0) {
+      return `${prefixo}Último x = ${fmt(ult.xNovo)}, f(x) = 0 em precisão dupla. O zero numérico foi observado; isso não é certificação matemática, e não se diz que o valor não é raiz.`;
+    }
     const dados = Number.isFinite(fv) ? `, f(x) = ${fmt(fv)}` : '';
     return `${prefixo}Último x = ${fmt(ult.xNovo)}${dados}. Esse valor não é raiz. Aumente o máximo de iterações ou escolha outro x0.`;
   }
@@ -283,16 +308,18 @@
         const k = salto.k, F = Metodos.fmtBR;
         avisar(avisos, 'SALTO_GRANDE', `Salto grande na iteração ${k + 1}: f'(x${k}) = ${F(salto.dfx)} é pequena, e x foi de ${F(salto.x)} para x${k + 1} = ${F(salto.xNovo)}.`);
       }
-      // Multiplicidade só com zero explícito de f e de f' no mesmo x. Não infere pela escala nem pelos iterados.
-      if (r.motivo === 'RAIZ_EXATA' && v.df(r.raiz) === 0) {
-        avisar(avisos, 'RAIZ_MULTIPLA', `f(${fmt(r.raiz)}) = 0 e f'(${fmt(r.raiz)}) = 0: zero e derivada nula observados neste ponto.`);
+      if (r.motivo === 'ZERO_PRECISAO_DUPLA') {
+        avisar(avisos, 'ZERO_PRECISAO_DUPLA', `Zero observado em precisão dupla em x = ${fmt(r.raiz)}: f vale 0 nessa aritmética. É a parada do método, não uma certificação matemática de raiz.`);
+        if (v.df(r.raiz) === 0) {
+          avisar(avisos, 'ZERO_E_DERIVADA', `f e f' também valem 0 em precisão dupla em x = ${fmt(r.raiz)}. Isso não prova multiplicidade matemática: pode ser arredondamento, underflow ou a derivada calculada.`);
+        }
       }
       avisarFallback(avisos, passos, v.tol, r.motivo);
-      const resultado = {
+      const resultado = camposDeParada(codigo || r.motivo, {
         raiz: /^(DIVERGENCIA|FUNCAO_NAO_DEFINIDA|DERIVADA_NAO_DEFINIDA|DERIVADA_NAO_FINITA)$/.test(codigo) ? null : r.raiz,
-        fRaiz: finito(r.raiz) ? v.f(r.raiz) : null, iteracoes: passos.length, convergiu: r.convergiu,
-        criterio: v.criterio, tol: v.tol, motivo: codigo || r.motivo, derivadaNumerica: v.tipoDerivada === 'numerica', tipoDerivada: v.tipoDerivada, derivadaTexto: v.derivadaTexto,
-      };
+        fRaiz: finito(r.raiz) ? v.f(r.raiz) : null, iteracoes: passos.length, convergiu: r.convergiu && !codigo,
+        criterio: v.criterio, tol: v.tol, derivadaNumerica: v.tipoDerivada === 'numerica', tipoDerivada: v.tipoDerivada, derivadaTexto: v.derivadaTexto,
+      });
       let erro = codigo ? (erroDominio || MENSAGENS_NEWTON[codigo](r.raiz, v.maxIter)) : null;
       if (codigo === 'NAO_CONVERGIU') erro = mensagemLimiteNewton(v, passos);
       return { passos, resultado, erro, codigoErro: codigo };

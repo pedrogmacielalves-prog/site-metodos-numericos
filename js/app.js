@@ -114,12 +114,14 @@
   function n6(v, d) { return v == null || !isFinite(v) ? '—' : String(+(+v).toPrecision(d || 10)); }
 
   var abas = {
-    bisseccao: montarAba('bisseccao', dados, function (r) { var n = r.passos.length, est = r.resultado.iteracoesEstimadas, ultimo = r.passos[n - 1];
-      var mot = r.resultado.motivo, exata = !!(r.resultado.zeroObservado || mot === 'RAIZ_EXATA' || (n === 0 && ultimo && ultimo.fc === 0));
-      if (mot === 'PARADA_INTERVALO' || r.codigoErro === 'PARADA_INTERVALO') return r.erro || 'Parada só pelo intervalo, condicional à continuidade de f.';
-      return (exata ? 'Zero observado em x = ' : 'Raiz ≈ ') + window.Visual.oito(r.resultado.raiz) + ' após ' + plural(n, 'iteração', 'iterações') + (exata ? ' (f nesse ponto é 0).' : (est ? ' (estimativa teórica: ' + est + ').' : '.')) + (exata ? '' : ' Parou porque ' + motivoCrit('bisseccao', r) + '.') + limite('bisseccao', r); }),
-    newton: montarAba('newton', dados, function (r) { var n = r.passos.length, u = r.passos[n - 1], porPasso = r.resultado.motivo ? r.resultado.motivo !== 'RAIZ_EXATA' : (u && isFinite(u.erro) && u.fx !== 0);
-      return 'Raiz ≈ ' + window.Visual.oito(r.resultado.raiz) + ' após ' + plural(n, 'iteração', 'iterações') + ({ simbolica: ' (derivada simbólica).', numerica: ' (derivada numérica).', fornecida: ' (derivada informada).' }[r.resultado.tipoDerivada] || '.') + (porPasso ? ' Parou porque ' + motivoCrit('newton', r) + '.' : ' Parou porque f(x) = 0.') + limite('newton', r); }),
+    bisseccao: montarAba('bisseccao', dados, function (r) { var n = r.passos.length, est = r.resultado.iteracoesEstimadas;
+      if (r.resultado.zeroObservado || r.resultado.parada === 'zero_precisao_dupla') return 'Zero observado em precisão dupla em x = ' + window.Visual.oito(r.resultado.raiz) + '. f vale 0 nessa aritmética. É a parada do método, não uma certificação matemática de raiz.';
+      if (r.resultado.motivo === 'PARADA_INTERVALO' || r.codigoErro === 'PARADA_INTERVALO') return r.erro || 'Parada só pelo intervalo, sob a hipótese de continuidade de f. Não diagnostica polo.';
+      return 'Raiz ≈ ' + window.Visual.oito(r.resultado.raiz) + ' após ' + plural(n, 'iteração', 'iterações') + (est ? ' (estimativa teórica: ' + est + ').' : '.') + ' Parou porque ' + motivoCrit('bisseccao', r) + '.' + limite('bisseccao', r); }),
+    newton: montarAba('newton', dados, function (r) { var n = r.passos.length, u = r.passos[n - 1];
+      if (r.resultado.zeroObservado || r.resultado.parada === 'zero_precisao_dupla') return 'Zero observado em precisão dupla em x = ' + window.Visual.oito(r.resultado.raiz) + '. f vale 0 nessa aritmética. É a parada do método, não uma certificação matemática de raiz.';
+      var porPasso = r.resultado.motivo ? r.resultado.motivo !== 'ZERO_PRECISAO_DUPLA' : (u && isFinite(u.erro) && u.fx !== 0);
+      return 'Raiz ≈ ' + window.Visual.oito(r.resultado.raiz) + ' após ' + plural(n, 'iteração', 'iterações') + ({ simbolica: ' (derivada simbólica).', numerica: ' (derivada numérica).', fornecida: ' (derivada informada).' }[r.resultado.tipoDerivada] || '.') + (porPasso ? ' Parou porque ' + motivoCrit('newton', r) + '.' : ' Parou porque f(x) = 0 em precisão dupla.') + limite('newton', r); }),
     gauss: montarAba('gauss', function (form) {
       var n = nAtual, M = [], erros = [];
       function nome(i, j) { return j === n ? 'b[' + (i + 1) + '] (vetor n×1)' : 'A[' + (i + 1) + '][' + (j + 1) + '] (matriz n×n)'; }
@@ -154,7 +156,7 @@
   };
   /* Critério de parada (Bissecção/Newton): mapeamento com o núcleo em js/visual/chamadas.js (Visual.criterio). */
   /* Parada no limite de precisão do computador (detectada nos passos, não pelo valor de ε). */
-  function limite(m, r) { var V = window.Visual; if (!r.resultado || r.resultado.motivo === 'RAIZ_EXATA' || !V.paradaNoLimite(m, r.passos)) return '';
+  function limite(m, r) { var V = window.Visual; if (!r.resultado || r.resultado.zeroObservado || r.resultado.motivo === 'ZERO_PRECISAO_DUPLA' || !V.paradaNoLimite(m, r.passos)) return '';
     var modo = r.criterio || 'relativo', nome = modo === 'relativo' ? 'ε' : 'tol', form = $('#form-' + m);
     var tol = Number(String(form.tol.value).trim().replace(/−/g, '-').replace(',', '.')), esc = m === 'bisseccao' ? Math.max(Math.abs(+String(form.a.value).replace(',', '.').replace(/−/g, '-')) || 0, Math.abs(+String(form.b.value).replace(',', '.').replace(/−/g, '-')) || 0) : Math.abs(r.resultado.raiz) || 0;
     var inalcancavel = V.tolAbaixoDoPiso(tol, modo, Math.max(esc, Math.abs(r.resultado.raiz) || 0));

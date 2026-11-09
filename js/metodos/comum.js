@@ -6,10 +6,11 @@
 
   /* Limites do sistema linear. N_MAX = 800 porque, acima de N_MODO_GRANDE,
      a página usa Worker e nesse caminho o tempo ficou perto de 2,5 s.
-     O pico de RSS não é um teto: uma amostra local ficou perto de 300 MiB e um
-     reteste em outro Node (com retorno do Worker, apresentação e reconstrução
-     do buffer) mediu cerca de 440–457 MiB. O orçamento de 48 MiB cobre só as
-     fotos e um buffer, não o RSS do processo. Não é um máximo possível.
+     O pico de RSS não é teto nem garantia: amostras ficaram perto de 315, 441–457
+     e 458,54 MiB conforme o Node e se a reconstrução do buffer entra na conta.
+     Em uma amostra fria de n = 800 o Worker levou cerca de 2,68 s e o buffer
+     mais cerca de 6 ms. O orçamento de 48 MiB cobre só as fotos e um buffer
+     (em n = 800, 46.137.600 bytes), não o RSS do processo. Não é um máximo possível.
      N_GRADE: grade editável e passos operação a operação. */
   Metodos.N_MIN = 2;
   Metodos.N_GRADE = 10;
@@ -334,7 +335,7 @@
   const fmt = (v) => Metodos.fmtBR(v);
   Metodos.textos = {
     bisseccao: function (manter, parou, crit) {
-      if (manter === 'raiz') return 'f(c) = 0: zero observado neste ponto.';
+      if (manter === 'raiz') return 'f(c) = 0 em precisão dupla: zero observado nessa aritmética, não uma certificação matemática.';
       if (parou) {
         const base = !crit || crit.criterio === 'absoluto'
           ? '(b − a)/2 < tolerância.'

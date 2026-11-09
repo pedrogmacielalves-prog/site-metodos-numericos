@@ -134,8 +134,8 @@
   V.sig6 = function (v) { if (v == null || !isFinite(v)) return '—'; var x = Number(v.toPrecision(6)), a = Math.abs(x);
     var s = x === 0 ? '0' : (a >= 1e-4 && a < 1e7 ? String(x) : x.toExponential().replace('e+', 'e'));
     return s.replace('.', ',').replace(/-/g, '−'); };
-  // Última linha = a raiz (destaque âmbar), só quando o método convergiu.
-  V.Tabela.prototype.marcarRaiz = function (sim) { var u = this.tbody.lastElementChild; [].forEach.call(this.tbody.children, function (tr) { tr.classList.remove('linha-raiz'); }); if (sim && u) { u.classList.add('linha-raiz'); u.setAttribute('aria-label', 'Linha ' + u.firstElementChild.textContent + ': aproximação da raiz'); } };
+  // Destaque da última linha. 'zero' = observação em precisão dupla; true = parada por tolerância; false = sem destaque.
+  V.Tabela.prototype.marcarRaiz = function (sim) { var u = this.tbody.lastElementChild; [].forEach.call(this.tbody.children, function (tr) { tr.classList.remove('linha-raiz'); }); if (sim && u) { u.classList.add('linha-raiz'); u.setAttribute('aria-label', 'Linha ' + u.firstElementChild.textContent + ': ' + (sim === 'zero' ? 'zero observado em precisão dupla, não é certificação matemática' : 'aproximação da parada por tolerância')); } };
   /* valores (opcional): números crus por célula → title/aria-label com o valor completo (BUG-35) */
   V.Tabela.prototype.preencher = function (linhas, valores) {
     this.tbody.innerHTML = linhas.map(function (l, i) { return '<tr data-i="' + i + '" tabindex="0">' + l.map(function (c, j) { var v = valores && valores[i] ? valores[i][j] : null, t = typeof v === 'number' && isFinite(v) ? V.completo(v) : ''; return '<td' + (t ? ' title="' + t + '" aria-label="' + t + '"' : '') + '>' + c + '</td>'; }).join('') + '</tr>'; }).join('');

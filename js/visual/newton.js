@@ -108,14 +108,15 @@
       carregar: function (res, fn) {
         var campo = res.criterio === 'relativo' ? V.criterio.campoErro : 'erro';
         passos = res.passos; f = fn; janela = null; indice = 0; grafico.restaurar(true);
-        raiz = res.resultado && res.resultado.convergiu && isFinite(res.resultado.raiz) ? res.resultado.raiz : null;
+        var zeroNum = !!(res.resultado && res.resultado.zeroObservado);
+        raiz = res.resultado && (zeroNum || res.resultado.convergiu) && isFinite(res.resultado.raiz) && res.resultado.parada !== 'intervalo' ? res.resultado.raiz : null;
         var p0 = passos[0];
         // largura mínima: 2% do 1º passo (ou 1e-3·escala), para a curva continuar legível nos passos finais
         larguraMin = p0 ? Math.max(Math.abs(p0.xNovo - p0.x) * 0.02, 1e-9 * (1 + Math.abs(p0.x)), 1e-3 * Math.min(1, Math.abs(p0.xNovo - p0.x) || 1)) : 1;
         if (!isFinite(larguraMin) || larguraMin <= 0) larguraMin = 1e-3;
         janelaTudo = calcJanelaTudo();
         tabela.preencher(passos.map(function (p) { return [p.k + 1, V.oito(p.x), V.oito(p.fx), V.oito(p.dfx), V.oito(p.xNovo), (p[campo] == null ? '—' : V.oito(p[campo])) + (p.criterioFallback ? V.FALLBACK_HTML : '')]; }), passos.map(function (p) { return [null, p.x, p.fx, p.dfx, p.xNovo, p[campo]]; }));
-        tabela.marcarRaiz(!!(res.resultado && res.resultado.convergiu));
+        tabela.marcarRaiz(zeroNum ? 'zero' : !!(res.resultado && res.resultado.convergiu && res.resultado.parada === 'tolerancia_passo'));
         var th = el.tbody.closest('table').querySelector('.th-erro'); if (th) th.textContent = V.thErro('newton', res.criterio === 'relativo');
         if (!passos.length) { grafico.definir(fn, -1, 1, []); grafico.desenhar(null); el.descricao.textContent = ''; }
       },
