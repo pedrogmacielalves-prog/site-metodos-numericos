@@ -123,8 +123,10 @@ test('BUG Newton: sem raiz falsa e derivada relativa', () => {
   assert.ok(!lin.avisos.some((a) => /raiz múltipla|horizontal/.test(a)));
   const cubo = E.newton({ f: 'x^3-1e-18', x0: 1, tol: 1e-12, maxIter: 30 });
   assert.notEqual(cubo.codigoErro, 'RAIZ_EM_ZERO_CRITERIO_RELATIVO');
-  const zero = E.newton({ f: 'x^3', x0: 1, tol: 1e-8, maxIter: 40 });
-  assert.equal(zero.codigoErro, 'RAIZ_EM_ZERO_CRITERIO_RELATIVO');
+  const zero = E.newton({ f: 'x^3', x0: 1, tol: 1e-4, maxIter: 80, criterio: 'relativo' });
+  assert.equal(zero.codigoErro, null);
+  assert.equal(zero.resultado.motivo, 'TOLERANCIA');
+  assert.ok(Math.abs(zero.resultado.raiz) < 1e-8);
 });
 
 test('BUG mensagens de maxIter, domínio e faixa', () => {
@@ -148,7 +150,8 @@ test('BUG parser 1e-999, hex e gerarSistema decimal', () => {
   assert.equal(cel.posicao, 0);
   assert.equal(M.analisarNumero('−1,5e-3').valor, -0.0015);
   assert.equal(M.analisarNumero('0x10').ok, false);
-  assert.equal(M.analisarNumero('1e-320').ok, false);
+  assert.equal(M.analisarNumero('1e-320').ok, true);
+  assert.notEqual(M.analisarNumero('1e-320').valor, 0);
   assert.equal(M.analisarNumero('0').valor, 0);
   assert.throws(() => M.gerarSistema(2.5, 1), /inteiro/);
   const g = M.gerarSistema(4, 1);

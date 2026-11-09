@@ -82,8 +82,7 @@ function tokenizar(expr) {
       const valor = Number(texto);
       const mantissa = texto.replace(/^[+-]/, '').replace(/[eE].*$/, '');
       const escritoNaoZero = /[1-9]/.test(mantissa);
-      const minNormal = 2.2250738585072014e-308;
-      if (!Number.isFinite(valor) || (valor === 0 && escritoNaoZero) || (valor !== 0 && Math.abs(valor) < minNormal)) {
+      if (!Number.isFinite(valor) || (valor === 0 && escritoNaoZero)) {
         throw erroSintaxe(`Número fora da faixa normal da precisão dupla: "${texto}"`, ini, expr);
       }
       tokens.push({ tipo: 'num', valor, pos: ini, texto });

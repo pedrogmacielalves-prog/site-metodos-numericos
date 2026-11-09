@@ -26,6 +26,26 @@
       }
       return R;
     },
+    /* Guarda A e b à parte: diminuir n não apaga coeficientes; aumentar n restaura. */
+    gravar: function (estado, matriz, n) {
+      estado.A = estado.A || []; estado.B = estado.B || [];
+      for (var i = 0; i < n; i++) {
+        estado.A[i] = estado.A[i] || [];
+        for (var j = 0; j < n; j++) estado.A[i][j] = matriz[i][j];
+        estado.B[i] = matriz[i][n];
+      }
+      return estado;
+    },
+    recortar: function (estado, n) {
+      var R = [], i, j, lin;
+      for (i = 0; i < n; i++) {
+        lin = [];
+        for (j = 0; j < n; j++) lin.push(estado.A[i] && estado.A[i][j] != null ? estado.A[i][j] : '');
+        lin.push(estado.B[i] != null ? estado.B[i] : '');
+        R.push(lin);
+      }
+      return R;
+    },
     aleatorio: function (n, rnd) {
       rnd = rnd || Math.random;
       var A = [], x = [], i, j;

@@ -19,7 +19,6 @@
   function numero(v, rotulo) {
     if (typeof v === 'number') {
       if (!Number.isFinite(v)) falhar('ENTRADA_INVALIDA', `"${rotulo}" deve ser um número finito.`);
-      if (v !== 0 && Math.abs(v) < Metodos.MIN_NORMAL) falhar('ENTRADA_INVALIDA', `"${rotulo}" está na subfaixa da precisão dupla.`);
       return v;
     }
     const r = Metodos.analisarNumero(v);
@@ -114,12 +113,16 @@
       const resultado = { raiz: r.raiz, fRaiz: v.f(r.raiz), iteracoes: r.passos.length, convergiu: r.convergiu, motivo: r.motivo, iteracoesEstimadas, criterio: v.criterio, tol: v.tol };
       if (pareceDescontinuidade(r.passos, v.fa, v.fb)) {
         const c = r.passos[r.passos.length - 1];
-        avisar(avisos, 'DESCONTINUIDADE', `Heurística de descontinuidade (não é uma prova): o intervalo encolheu perto de x = ${fmt(c.c)}, mas |f| cresceu (f(c) = ${fmt(c.fc)}). Pode haver um polo; confira se f é contínua nesse intervalo.`);
+        resultado.convergiu = false;
+        resultado.motivo = 'DESCONTINUIDADE';
+        resultado.raizCertificada = false;
+        return { passos: r.passos, resultado, codigoErro: 'DESCONTINUIDADE',
+          erro: `Heurística, não uma certificação de raiz: o intervalo encolheu perto de x = ${fmt(c.c)}, mas |f| cresceu (f(c) = ${fmt(c.fc)}). Sem continuidade, fechar o intervalo não prova raiz (pode ser um polo). Esta heurística só olha |f| crescer em pelo menos 6 passos; não vê salto sem explosão e pode não disparar se a tolerância parar cedo. Confira se f é contínua; este ponto não é apresentado como raiz.` };
       }
       if (!r.convergiu) {
         const msg = v.maxIter === 1
           ? 'Com apenas 1 iteração o intervalo só foi cortado uma vez e a tolerância não foi atingida. Aumente o máximo de iterações ou afrouxe a tolerância.'
-          : 'Máximo de iterações atingido sem atingir a tolerância.';
+          : 'Máximo de iterações atingido sem atingir a tolerância. Aumente o máximo de iterações ou afrouxe a tolerância.';
         return { passos: r.passos, resultado, erro: msg, codigoErro: 'NAO_CONVERGIU' };
       }
       return { passos: r.passos, resultado, erro: null, codigoErro: null };
@@ -182,21 +185,24 @@
   // BUG-32: relativo + raiz em 0 (ex.: x³). Últimos 6 passos com |x| decrescendo
   // monotonamente e erro relativo estagnado (≥ 0,9× o de 5 passos antes).
   function raizEmZeroRelativo(passos, f) {
-    if (passos.length < 6) return false;
+    if (passos.length < 6 || typeof f !== 'function') return false;
     const u = passos.slice(-6), ax = u.map((s) => Math.abs(s.xNovo));
     const decresce = ax.every((v, i) => i === 0 || v < ax[i - 1]);
     const e0 = u[0].erroCriterio, e5 = u[5].erroCriterio;
     if (!(decresce && e0 != null && e5 != null && e5 >= 0.9 * e0)) return false;
-    const xU = u[5].xNovo;
-    let fU = u[5].fx;
-    if (typeof f === 'function' && Number.isFinite(xU)) { try { fU = f(xU); } catch (e) { fU = NaN; } }
-    // x²+1 chega perto de 0 com f ainda O(1): não é raiz.
-    if (!Number.isFinite(fU) || Math.abs(fU) > 1e-4) return false;
-    // x³−1e−18: o sinal troca antes de 0, então a raiz não está em 0.
-    if (typeof f === 'function' && xU !== 0 && fU !== 0) {
-      const f2 = f(xU / 8);
-      if (Number.isFinite(f2) && f2 !== 0 && (fU < 0) !== (f2 < 0)) return false;
+    let fRef = 0;
+    for (const s of passos) {
+      const y = f(s.x);
+      if (Number.isFinite(y)) fRef = Math.max(fRef, Math.abs(y));
     }
+    const f0 = f(0);
+    // 1e−6·(x²+1) tem mínimo 1e−6 em 0: não é raiz. x³ tem f(0)=0.
+    if (!Number.isFinite(f0) || Math.abs(f0) > 1e-8 * Math.max(fRef, 1e-300)) return false;
+    const xU = u[5].xNovo;
+    if (!Number.isFinite(xU) || xU === 0) return Math.abs(f0) === 0;
+    const fU = f(xU), fPerto = f(xU * 1e-6);
+    // x³−1e−18: o sinal troca entre o iterado e um ponto bem mais perto de 0.
+    if (Number.isFinite(fU) && Number.isFinite(fPerto) && fU !== 0 && fPerto !== 0 && (fU < 0) !== (fPerto < 0)) return false;
     return true;
   }
 
@@ -204,11 +210,12 @@
     DERIVADA_ZERO: (x) => `Derivada ≈ 0 em x = ${fmt(x)}: a tangente é horizontal e não cruza o eixo x. Tente outro x0.`,
     DIVERGENCIA: () => 'O método divergiu (|x| ou o erro cresceu demais). Tente um x0 mais perto da raiz.',
     OSCILACAO: () => 'Os valores de x entraram em ciclo (oscilação) e não convergem. Tente outro x0.',
-    NAO_CONVERGIU: (x, maxIter) => maxIter === 1
-      ? 'Foi dado apenas 1 passo de Newton e a tolerância não foi atingida. Aumente o máximo de iterações ou escolha um x0 mais perto da raiz.'
-      : 'Máximo de iterações atingido sem convergir.',
+    NAO_CONVERGIU: (x, maxIter) => (maxIter === 1
+      ? 'Foi dado apenas 1 passo de Newton e a tolerância não foi atingida. '
+      : 'Máximo de iterações atingido sem convergir. ') + 'Aumente o máximo de iterações ou escolha um x0 mais perto da raiz.',
     RAIZ_EM_ZERO_CRITERIO_RELATIVO: (x) => `Os iterados convergem para x = 0, uma raiz múltipla (último x = ${fmt(x)}); o erro relativo |Δx|/|x| não diminui quando a raiz é 0 (fica em ≈ 0,5). Use o critério absoluto.`,
     FUNCAO_NAO_DEFINIDA: (x) => `f ou f' não está definida em x = ${fmt(x)} (o passo saiu do domínio de f). Tente outro x0.`,
+    DERIVADA_NAO_FINITA: (x) => `Em x = ${fmt(x)}, f está definida, mas f' não é finita: a derivada explode, não é uma tangente horizontal. Tente um x0 mais perto da raiz.`,
   };
 
   // Procura, na árvore de f, a operação que deixou f(x) indefinida e devolve a causa em palavras.
@@ -278,6 +285,16 @@
       }
       else if (r.motivo === 'MAX_ITERACOES') codigo = diagnosticarNewton(passos);
       else if (!r.convergiu) codigo = r.motivo;
+      if (codigo === 'FUNCAO_NAO_DEFINIDA' && !erroDominio) {
+        const x = r.raiz;
+        const causa = causaForaDoDominio(v.f.ast, x);
+        if (causa && /faixa|709/.test(causa)) erroDominio = `x = ${fmt(x)}: o passo saiu da faixa da precisão dupla (${causa}). Escolha um x0 menor ou mais perto da raiz.`;
+        else erroDominio = `x = ${fmt(x)} está fora do domínio de f (${causa || 'f não está definida'}). Tente um x0 mais perto da raiz.`;
+      }
+      if (codigo === 'DERIVADA_NAO_FINITA' && !erroDominio) {
+        const formula = v.tipoDerivada === 'numerica' ? '' : ` (f'(x) = ${v.derivadaTexto})`;
+        erroDominio = `Em x = ${fmt(r.raiz)}, f está definida, mas f' não é finita${formula}: a derivada explode, não é uma tangente horizontal. Tente um x0 mais perto da raiz.`;
+      }
       // BUG-32: o desfecho vira RAIZ_EM_ZERO_CRITERIO_RELATIVO (erro; raiz sugerida = último x).
       if (v.criterio === 'relativo' && /^(DERIVADA_ZERO|NAO_CONVERGIU|MAX_ITERACOES)$/.test(codigo || r.motivo) && raizEmZeroRelativo(passos, v.f)) codigo = 'RAIZ_EM_ZERO_CRITERIO_RELATIVO';
       // Salto grande: f'(x) pequena manda x para longe (|Δx| > 5·max(1, |x0|)). Avisa só o 1º.
@@ -298,7 +315,7 @@
       else if ((r.convergiu || codigo === 'RAIZ_EM_ZERO_CRITERIO_RELATIVO') && convergenciaLinear(passos)) avisar(avisos, 'CONVERGENCIA_LENTA', 'Convergência lenta (linear): provável raiz múltipla, onde f e f\' se anulam juntas.');
       avisarFallback(avisos, passos, v.tol, r.motivo);
       const resultado = {
-        raiz: /^(DIVERGENCIA|FUNCAO_NAO_DEFINIDA|DERIVADA_NAO_DEFINIDA)$/.test(codigo) ? null : r.raiz,
+        raiz: /^(DIVERGENCIA|FUNCAO_NAO_DEFINIDA|DERIVADA_NAO_DEFINIDA|DERIVADA_NAO_FINITA)$/.test(codigo) ? null : r.raiz,
         fRaiz: finito(r.raiz) ? v.f(r.raiz) : null, iteracoes: passos.length, convergiu: r.convergiu,
         criterio: v.criterio, tol: v.tol, motivo: codigo || r.motivo, derivadaNumerica: v.tipoDerivada === 'numerica', tipoDerivada: v.tipoDerivada, derivadaTexto: v.derivadaTexto,
       };
@@ -436,6 +453,11 @@
     }
     let maiorB = 0;
     for (let i = rank; i < n; i++) maiorB = Math.max(maiorB, Math.abs(M[i][n] || 0));
+    const inteira = A.every((lin) => lin.every((v) => Number.isInteger(v) && Math.abs(v) <= Number.MAX_SAFE_INTEGER))
+      && b.every((v) => Number.isInteger(v) && Math.abs(v) <= Number.MAX_SAFE_INTEGER);
+    // Dependência exata de entradas inteiras deixa só poeira de arredondamento.
+    // 1+2e−16 não é inteiro: continua quase singular.
+    if (inteira && maiorDescartado < 1e-8 && maiorB < 1e-8) maiorDescartado = 0;
     const postoA = rank;
     const bSignificativo = estruturalInconsistente || maiorB > tol;
     const postoAug = Math.min(n, bSignificativo ? postoA + 1 : postoA);
@@ -683,7 +705,7 @@
       const pronto = {
         passos: montado.passos, x: exp.x, motivo: exp.motivo, coluna: exp.coluna,
         diag: exp.diag, mult: exp.mult, ordem: exp.ordem, U: exp.U,
-        condicaoPronta: exp.condicao, historico: montado.historico,
+        condicaoPronta: exp.condicao, historico: montado.historico, refX: exp.refX,
       };
       const r0 = executarGaussOperacao(v, 'coluna', avisos, pronto);
       avisar(avisos, 'MODO_COLUNA', 'Modo por coluna: um passo por coluna de pivô (matriz grande).');

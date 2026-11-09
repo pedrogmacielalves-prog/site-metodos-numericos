@@ -92,10 +92,9 @@
     else { var p = v.toExponential(8).split('e'), e = +p[1]; s = p[0] + 'e' + (e < 0 ? '-' : '+') + (Math.abs(e) < 10 ? '0' : '') + Math.abs(e); }
     return s.replace('.', ',').replace(/-/g, '−'); };
   V.escalaVetor = function (x) { var m = 0; (x || []).forEach(function (v) { if (v != null && isFinite(v) && Math.abs(v) > m) m = Math.abs(v); }); return m; };
-  /* x na própria escala (não na de A/b): um coeficiente enorme não zera incógnita pequena. */
+  /* Cada componente na própria escala: x=[1, 1e20] não pode virar [0, 1e20]. */
   V.fmtSolucao = function (x) {
-    var ex = V.escalaVetor(x);
-    return (x || []).map(function (v) { if (v == null) return '?'; var y = V.limpar(v, ex); if (!isFinite(y)) return '—'; return V.oito(y); });
+    return (x || []).map(function (v) { if (v == null) return '?'; if (!isFinite(v)) return '—'; return V.oito(v); });
   };
   /* BUG-16: texto de exibição em PT-BR — vírgula decimal e sinal de menos tipográfico (não mexe no código da gaveta). */
   /* números por extenso (≥ 1e6 ou 0 < |v| < 1e-4) viram notação da matriz; não toca em 1e-17, x1, a11, L10 etc. */

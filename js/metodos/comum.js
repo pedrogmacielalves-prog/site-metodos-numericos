@@ -4,13 +4,15 @@
   'use strict';
   const Metodos = g.Metodos = g.Metodos || {};
 
-  /* Limites do sistema linear. N_MAX é o limite prático medido (tempo, memória, histórico e mapa),
-     não um teto teórico. N_GRADE: grade editável e passos operação a operação. */
-  /* Este Node não expõe Number.MIN_NORMAL; 2⁻¹⁰²² é o menor normal da precisão dupla. */
-  Metodos.MIN_NORMAL = 2.2250738585072014e-308;
+  /* Limites do sistema linear. N_MAX é o maior n em que o caminho da página
+     (Worker acima de N_MODO_GRANDE, mais a apresentação) ficou perto de 2,5 s
+     com pico de RSS perto de 300 MiB nesta máquina. O motor síncrono sozinho
+     ainda fica perto de 1 s em n = 1000; esse não é o caminho da interface.
+     Não é um máximo possível nem um teto seguro para todo navegador.
+     N_GRADE: grade editável e passos operação a operação. */
   Metodos.N_MIN = 2;
   Metodos.N_GRADE = 10;
-  Metodos.N_MAX = 1000;
+  Metodos.N_MAX = 800;
   Metodos.N_MODO_GRANDE = 400;
   Metodos.faixaN = function () { return Metodos.N_MIN + ' e ' + Metodos.N_MAX; };
   Metodos.msgTamanhoN = function (n) {
@@ -20,7 +22,8 @@
   /**
    * Um número de célula ou de texto colado.
    * Aceita vírgula decimal, − (U+2212), – (U+2013) e notação científica.
-   * Rejeita hexadecimal/binário e não nulos fora da faixa normal (subnormal ou que viram 0, como 1e-999).
+   * Rejeita hexadecimal/binário e literais não nulos que a precisão dupla torna 0 (1e-999).
+   * Subnormais que sobrevivem não nulos (1e-320) são aceitos.
    * Devolve { ok, valor } ou { ok:false, erro, posicao } (posição no texto original).
    */
   Metodos.analisarNumero = function (texto) {
@@ -42,7 +45,6 @@
     const escritoNaoZero = /[1-9]/.test(mantissa);
     if (!Number.isFinite(v)) return { ok: false, erro: 'número fora da faixa da precisão dupla', posicao: ini };
     if (v === 0 && escritoNaoZero) return { ok: false, erro: 'número não nulo abaixo da faixa normal (a precisão dupla o torna 0)', posicao: ini };
-    if (v !== 0 && Math.abs(v) < Metodos.MIN_NORMAL) return { ok: false, erro: 'número na subfaixa (subnormal); não é aceito', posicao: ini };
     return { ok: true, valor: v };
   };
 
@@ -66,18 +68,26 @@
    * algumas fotos dentro de um orçamento de memória. matrizDoPasso / em(k)
    * reconstroem a matriz depois da coluna k (−1 = início) sem guardar n cópias.
    */
+  /** Bytes de uma aumentada n×(n+1). O orçamento inclui fotos e o buffer de reconstrução. */
+  Metodos.ORCAMENTO_HISTORICO = 48 * 1024 * 1024;
+  Metodos.planejarFotos = function (n) {
+    const bytes = n * (n + 1) * 8;
+    const maxMatrizes = Math.max(1, Math.floor(Metodos.ORCAMENTO_HISTORICO / Math.max(bytes, 1)));
+    const maxChecks = Math.max(1, maxMatrizes > 1 ? maxMatrizes - 1 : 1);
+    const stride = maxChecks <= 1 ? n : Math.ceil(n / (maxChecks - 1));
+    return { bytes: bytes, maxChecks: maxChecks, stride: stride };
+  };
   Metodos.criarHistorico = function (M0) {
     const n = M0.length;
     const inicial = Metodos.copiarMatriz(M0);
     const ops = [];
-    const bytes = n * (n + 1) * 8;
-    const orcamento = 48 * 1024 * 1024;
-    const maxCk = Math.max(2, Math.floor(orcamento / Math.max(bytes, 1)));
-    const stride = Math.max(1, Math.ceil((n + 1) / maxCk));
+    const plano = Metodos.planejarFotos(n);
+    const bytes = plano.bytes, stride = plano.stride, maxChecks = plano.maxChecks;
     const checks = [{ k: -1, M: inicial }];
     const trabalho = { k: -1, M: null };
     function anotar(op, M) {
       ops.push(op);
+      if (checks.length >= maxChecks) return;
       if ((op.k + 1) % stride === 0 || op.k === n - 1) checks.push({ k: op.k, M: Metodos.copiarMatriz(M) });
     }
     function aplicar(M, op) {
@@ -103,9 +113,10 @@
       return M;
     }
     return {
-      n: n, stride: stride, orcamento: orcamento,
+      n: n, stride: stride, orcamento: Metodos.ORCAMENTO_HISTORICO,
       anotar: anotar, em: em,
-      tamanho: function () { return checks.length * bytes; },
+      tamanho: function () { return (checks.length + (trabalho.M ? 1 : 0)) * bytes; },
+      bytesReservados: function () { return (checks.length + 1) * bytes; },
       fotos: function () { return checks.length; },
     };
   };

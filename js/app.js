@@ -10,9 +10,8 @@
   }
   /* Gauss n > 3: solução numa tabela compacta (xᵢ | valor), fmtTab (vírgula, −), rolagem interna */
   function tabelaSolucao(r) { var V = window.Visual, x = (r.resultado && r.resultado.x) || []; if (x.length <= 3) return '';
-    var esc0 = V.escalaVetor(x);
     return '<div class="solucao-tabela" tabindex="0" role="region" aria-label="Solução x"><table class="tabela tabela--solucao"><thead><tr><th scope="col">xᵢ</th><th scope="col">valor</th></tr></thead><tbody>' +
-      x.map(function (v, k) { var t = V.fmtTab(V.limpar(v, esc0)); if (/^−0(,0*)?$/.test(t)) t = t.slice(1); return '<tr><th scope="row">x' + (k + 1) + '</th><td title="' + V.completo(v) + '" aria-label="x' + (k + 1) + ' = ' + V.completo(v) + '">' + t + '</td></tr>'; }).join('') + '</tbody></table></div>'; }
+      x.map(function (v, k) { var t = V.fmtTab(v); if (/^−0(,0*)?$/.test(t)) t = t.slice(1); return '<tr><th scope="row">x' + (k + 1) + '</th><td title="' + V.completo(v) + '" aria-label="x' + (k + 1) + ' = ' + V.completo(v) + '">' + t + '</td></tr>'; }).join('') + '</tbody></table></div>'; }
   function mostrarMensagens(id, res, resumo) {
     var h = '';
     if (res.erro && id === 'newton' && res.codigoErro === 'OSCILACAO' && window.Visual.cicloNoLimite(res.passos)) {
@@ -39,8 +38,13 @@
     texto.textContent = 'Eliminando o sistema ' + n + '×' + n + ' (A ' + n + '×' + n + ', b ' + n + '×1)…';
     tarefaGrande = window.Visual.tarefaGauss(A, b, p.pivoteamento || 'automatico', {
       progresso: function (k, nT) { barra.value = k; texto.textContent = 'Coluna ' + k + ' de ' + nT + ' · Sistema ' + nT + '×' + nT + ' · A: ' + nT + '×' + nT + ', b: ' + nT + '×1'; },
-      fim: function (exp) {
+        erro: function () {
+          tarefaGrande = null; box.hidden = true;
+          concluir({ passos: [], resultado: null, erro: 'Não foi possível calcular em segundo plano. Tente de novo ou reduza n.', codigoErro: 'ERRO_INTERNO', avisos: [] });
+        },
+        fim: function (exp) {
         tarefaGrande = null; box.hidden = true;
+        if (!exp) { concluir({ passos: [], resultado: null, erro: 'O cálculo em segundo plano não devolveu resultado.', codigoErro: 'ERRO_INTERNO', avisos: [] }); return; }
         var bruto;
         try { bruto = window.Metodos.apresentarMotor({ A: A, b: b, pivoteamento: p.pivoteamento }, exp); }
         catch (e) { bruto = { passos: [], erro: 'Erro interno: ' + e.message, codigoErro: 'ERRO_INTERNO', avisos: [] }; }
@@ -216,7 +220,7 @@
     for (var i = 0; i < n; i++) { M.push([]); var b = 0; for (var j = 0; j < n; j++) { var a = i === j ? n + 2 : ((i + 2 * j) % 3) - 1; M[i].push(a); b += a * (j + 1); } M[i].push(b); }
     return M;
   }
-  var GE = window.Visual.gaussEntrada, nAtual = 3, modelo = [], origem = '';
+  var GE = window.Visual.gaussEntrada, nAtual = 3, modelo = [], acervoA = [], acervoB = [], origem = '';
   var M_ = window.Metodos || {};
   var INPUTS = '#rolagem-entrada input[data-l]';
   function lerEntrada() { // n ≤ 10: grades A e b → modelo (aumentado internamente; b na última coluna)
@@ -225,6 +229,16 @@
   }
   /* tooltip da célula: valor completo com vírgula e − (o dado bruto fica em data-valor) */
   function tituloCel(v) { return String(v).replace(/-/g, '−').replace(/\./g, ','); }
+  function revelarCelula(inp) {
+    var rol = $('#rolagem-entrada'), bloco = document.querySelector('.entrada-bloco--b');
+    if (!rol || !inp || !inp.getBoundingClientRect) return;
+    var ir = inp.getBoundingClientRect(), rr = rol.getBoundingClientRect();
+    if (bloco && String(inp.dataset.c) !== String(nAtual)) {
+      var br = bloco.getBoundingClientRect();
+      if (ir.right > br.left - 6) rol.scrollLeft += ir.right - br.left + 18;
+    }
+    if (ir.left < rr.left + 40) rol.scrollLeft -= rr.left + 40 - ir.left;
+  }
   function celula(i, j, n) { return '<input form="form-gauss" size="5" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-l="' + i + '" data-c="' + j + '" class="input input--num' + (j === n ? ' col-b' : '') + '" aria-label="' + (j === n ? 'b linha ' + (i + 1) + ', vetor n×1' : 'A linha ' + (i + 1) + ', coluna ' + (j + 1) + ', matriz n×n') + '" aria-describedby="dimensao-gauss" value="' + esc(curtoCel(modelo[i][j])) + '" data-valor="' + esc(modelo[i][j] == null ? '' : modelo[i][j]) + '" title="' + esc(modelo[i][j] == null ? '' : tituloCel(modelo[i][j])) + '">'; }
   function esconderErros() { var box = $('#resumo-erros'); if (box) { box.hidden = true; box.innerHTML = ''; } }
   function mostrarErros(erros) {
@@ -260,12 +274,6 @@
   (function () {
     var raiz = document.getElementById('rolagem-entrada'); if (!raiz) return;
     function focarCel(i, j) { var el = document.querySelector('#rolagem-entrada [data-l="' + i + '"][data-c="' + j + '"]'); if (el) { el.focus(); revelarCelula(el); } }
-    function revelarCelula(inp) {
-      var rol = $('#rolagem-entrada'), bloco = document.querySelector('.entrada-bloco--b'); if (!rol || !inp) return;
-      var ir = inp.getBoundingClientRect(), rr = rol.getBoundingClientRect();
-      if (bloco && String(inp.dataset.c) !== String(nAtual)) { var br = bloco.getBoundingClientRect(); if (ir.right > br.left - 6) rol.scrollLeft += ir.right - br.left + 18; }
-      if (ir.left < rr.left + 40) rol.scrollLeft -= rr.left + 40 - ir.left;
-    }
     raiz.addEventListener('focusin', function (e) { var t = e.target; if (!t.matches || !t.matches('input[data-l]')) return; if (t.dataset.valor != null) t.value = t.dataset.valor; t.select && t.select(); revelarCelula(t); });
     raiz.addEventListener('keydown', function (e) {
       var t = e.target; if (!t.matches || !t.matches('input[data-l]')) return;
@@ -329,6 +337,10 @@
     }
     sincronizarN(); caberEntrada(); indicarRolagem();
   }
+  function estadoAcervo() { return { A: acervoA, B: acervoB }; }
+  function gravarAcervo() { var e = GE.gravar(estadoAcervo(), lerEntrada(), nAtual); acervoA = e.A; acervoB = e.B; }
+  function matrizDoAcervo(n) { return GE.recortar(estadoAcervo(), n); }
+  function zerarAcervo() { acervoA = []; acervoB = []; }
   var ROTULO_ROLAGEM = { '#rolagem-tab-bisseccao': 'Tabela de iterações, role para ver mais colunas', '#rolagem-tab-newton': 'Tabela de iterações, role para ver mais colunas', '#rolagem-entrada': 'Matriz A, role para ver mais colunas', '#rolagem-matriz': 'Matriz da etapa, role para ver mais colunas' };
   function bordas(r) { var max = r.scrollWidth - r.clientWidth; r.classList.toggle('tem-esq', r.scrollLeft > 1); r.classList.toggle('tem-dir', r.scrollLeft < max - 1); }
   function indicarRolagem() {
@@ -352,7 +364,7 @@
   function mudarN(v) {
     var r = GE.limitarN(v);
     if (r.ajustado) $('#msg-gauss').innerHTML = toast('aviso', 'n deve ser inteiro entre ' + GE.MIN + ' e ' + GE.MAX + '; usei n = ' + r.n + '.');
-    if (r.n !== nAtual) { montarEntrada(r.n, lerEntrada()); abas.gauss.marcarDesatualizado(true); } else sincronizarN();
+    if (r.n !== nAtual) { gravarAcervo(); montarEntrada(r.n, matrizDoAcervo(r.n)); abas.gauss.marcarDesatualizado(true); } else sincronizarN();
   }
   formG.n.addEventListener('change', function () { mudarN(formG.n.value); });
   formG.n.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); mudarN(formG.n.value); } });
@@ -363,9 +375,10 @@
       if (r && r.A && r.b) return r.A.map(function (l, i) { return l.concat([r.b[i]]); }); if (r && r.matriz) return r.matriz; if (Array.isArray(r)) return r; } catch (e) {} }
     return GE.aleatorio(n).matriz;
   }
-  $('#exemplo-gauss').addEventListener('click', function () { avisoColar.hidden = true; pendente = null; montarEntrada(nAtual, exemplo(nAtual), 'exemplo'); abas.gauss.executar(); });
-  $('#aleatorio-gauss').addEventListener('click', function () { avisoColar.hidden = true; pendente = null; montarEntrada(nAtual, gerar(nAtual), 'aleatório, solução inteira'); abas.gauss.executar(); });
-  $('#limpar-gauss').addEventListener('click', function () { avisoColar.hidden = true; pendente = null; origem = ''; montarEntrada(nAtual, null); $('#msg-gauss').innerHTML = ''; abas.gauss.marcarDesatualizado(true); var p = $(INPUTS); (p || $('#colar-gauss')).focus(); });
+  function substituirSistema(n, valores, fonte) { zerarAcervo(); montarEntrada(n, valores, fonte); gravarAcervo(); }
+  $('#exemplo-gauss').addEventListener('click', function () { avisoColar.hidden = true; pendente = null; substituirSistema(nAtual, exemplo(nAtual), 'exemplo'); abas.gauss.executar(); });
+  $('#aleatorio-gauss').addEventListener('click', function () { avisoColar.hidden = true; pendente = null; substituirSistema(nAtual, gerar(nAtual), 'aleatório, solução inteira'); abas.gauss.executar(); });
+  $('#limpar-gauss').addEventListener('click', function () { avisoColar.hidden = true; pendente = null; origem = ''; zerarAcervo(); montarEntrada(nAtual, null); $('#msg-gauss').innerHTML = ''; abas.gauss.marcarDesatualizado(true); var p = $(INPUTS); (p || $('#colar-gauss')).focus(); });
   /* Colar A e b (separados ou aumentada): valida contra o n escolhido; nunca muda n sozinho */
   var painelColar = $('#painel-colar'), avisoColar = $('#aviso-colar'), pendente = null;
   function modoColar() { return (formG.querySelector('[name=modo-colar]:checked') || {}).value || 'separado'; }
@@ -393,7 +406,7 @@
     if (r.erro || !r.A) return { ok: false, erro: r.erro || 'Não foi possível ler A e b.', campo: r.campo || 'A', linha: r.linha, coluna: r.coluna };
     return { ok: true, n: r.n || r.A.length, M: aumentar(r.A, r.b) };
   }
-  function carregarColado(r) { montarEntrada(r.n, r.M, 'colados'); mostrarColar(false); abas.gauss.executar(); }
+  function carregarColado(r) { substituirSistema(r.n, r.M, 'colados'); mostrarColar(false); abas.gauss.executar(); }
   $('#carregar-colar').addEventListener('click', function () {
     var aum = modoColar() === 'aumentada', r = aum ? lerAumentada($('#texto-colar').value) : lerSeparado($('#texto-colar-a').value, $('#texto-colar-b').value);
     limparInvalidas(); avisoColar.hidden = false;

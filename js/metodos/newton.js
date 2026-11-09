@@ -24,20 +24,20 @@
       // @etapa:avaliaDerivada — inclinação da tangente em x
       const dfx = df(x);
 
-      // Se f(x) = 0, já estamos exatamente na raiz.
+      // Raiz exata antes do limite de divergência (x = −1e20 pode ser a raiz).
       if (fx === 0) return fim(true, 'RAIZ_EXATA');
+      // f não finita não é tangente horizontal.
+      if (!Number.isFinite(fx)) return fim(false, 'FUNCAO_NAO_DEFINIDA');
 
       // 1º) Divergência: x "explodiu" (ou deixou de ser número).
       const explodiu = !Number.isFinite(x) || Math.abs(x) > limite;
       if (explodiu) return fim(false, 'DIVERGENCIA');
 
-      // 2º) Tangente horizontal. O limiar é relativo a |f| e |x|:
-      // |f'| = 1e−20 ainda resolve 1e−20·(x−1) num passo; |f'| = 0 não.
-      const escalaX = Math.max(1, Math.abs(x));
-      const passo = dfx === 0 ? Infinity : fx / dfx;
-      const derivadaInutil = !Number.isFinite(dfx) || dfx === 0 || !Number.isFinite(passo)
-        || Math.abs(dfx) * escalaX <= Number.EPSILON * Math.abs(fx);
-      if (derivadaInutil) return fim(false, 'DERIVADA_ZERO');
+      // 2º) f' infinita (explode) é outro caso que f' = 0.
+      if (!Number.isFinite(dfx)) return fim(false, 'DERIVADA_NAO_FINITA');
+      // Tangente horizontal só se o passo não existe. f' = 1 com f = 1e20
+      // ainda dá um passo finito; f' = 1e−20·(x−1) também.
+      if (dfx === 0 || !Number.isFinite(fx / dfx)) return fim(false, 'DERIVADA_ZERO');
 
       // @etapa:passoNewton — a tangente em x cruza o eixo x em xNovo
       const xNovo = x - fx / dfx;

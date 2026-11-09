@@ -166,8 +166,12 @@
     const mult = Array.from({ length: n }, () => new Array(n).fill(0));
     const ordem = Array.from({ length: n }, (_, i) => i);
     const passos = [];
-    const hist = modo === 'coluna' ? Metodos.criarHistorico(M) : null;
-    const registrar = modo === 'nenhum' ? function () {} : Metodos.registrador(passos, M, modo, hist);
+    let modoUsado = modo;
+    const bytesPasso = n * (n + 1) * 8;
+    const copiasOperacao = 3 + n + n * (n + 1) / 2;
+    if (modoUsado === 'operacao' && copiasOperacao * bytesPasso > Metodos.ORCAMENTO_HISTORICO) modoUsado = 'coluna';
+    const hist = modoUsado === 'coluna' ? Metodos.criarHistorico(M) : null;
+    const registrar = modoUsado === 'nenhum' ? function () {} : Metodos.registrador(passos, M, modoUsado, hist);
     const falha = (motivo, coluna) => ({ passos, x: null, motivo, coluna, mult, ordem, historico: hist, escalas });
 
     registrar('inicio', {}); // @etapa:inicio — monta [A | b]
@@ -246,10 +250,13 @@
     const mult = Array.from({ length: n }, () => new Array(n).fill(0));
     const ops = [];
     const bytes = n * (n + 1) * 8;
-    const maxCk = Math.max(2, Math.floor((48 * 1024 * 1024) / Math.max(bytes, 1)));
-    const stride = Math.max(1, Math.ceil((n + 1) / maxCk));
+    const orc = 48 * 1024 * 1024;
+    const maxMat = Math.max(1, Math.floor(orc / Math.max(bytes, 1)));
+    const maxChecks = Math.max(1, maxMat > 1 ? maxMat - 1 : 1);
+    const stride = maxChecks <= 1 ? n : Math.ceil(n / (maxChecks - 1));
     const checks = [];
     function foto(kk) {
+      if (checks.length >= maxChecks) return;
       const data = new Float64Array(n * (n + 1));
       for (let i = 0; i < n; i++) for (let j = 0; j <= n; j++) data[i * (n + 1) + j] = M[i][j];
       checks.push({ k: kk, data: data });
@@ -310,7 +317,7 @@
         }
         if (estourou) { motivo = 'FORA_DA_FAIXA'; colunaParou = k; fase = 'fim'; break; }
         ops.push({ k: k, linha: p, tipo: esc.tipo, motivo: esc.motivo, pequeno: esc.pequeno, valorOriginal: valorOriginal, valorNovo: valorNovo, fatores: fatores });
-        if ((k + 1) % stride === 0 || k === n - 1) foto(k);
+        if (checks.length < maxChecks && ((k + 1) % stride === 0 || k === n - 1)) foto(k);
         k++; feitos++;
       }
       if (fase === 'elim' && k >= n) fase = 'subs';

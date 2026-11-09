@@ -24,12 +24,13 @@
     if (fa !== 0 && fb !== 0 && (fa < 0) === (fb < 0)) return fim(false, 'SEM_TROCA_DE_SINAL');
 
     for (let k = 1; k <= maxIter; k++) {
-      // @etapa:pontoMedio — ponto médio estável (a+b estoura se a e b são grandes)
-      c = a + (b - a) / 2;
+      // @etapa:pontoMedio — estável nos dois sinais (b−a estoura se a e b são opostos e enormes)
+      const sinaisOpostos = (a < 0) !== (b < 0);
+      c = sinaisOpostos ? a / 2 + b / 2 : a + (b - a) / 2;
       const fc = f(c);
 
       // A raiz está a no máximo meio intervalo de c: esse é o erro.
-      const erro = (b - a) / 2;
+      const erro = sinaisOpostos ? Math.abs(a) / 2 + Math.abs(b) / 2 : Math.abs(b - a) / 2;
       const erroRelativo = Metodos.erroRelativo(erro, c);
 
       // @etapa:testeSinal — sinais opostos, sem multiplicar f(a)·f(c)

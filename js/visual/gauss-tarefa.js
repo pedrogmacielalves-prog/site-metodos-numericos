@@ -1,6 +1,5 @@
-/* Cálculo grande sem travar a página: Worker (Blob, também em file:// quando o
-   navegador deixa) e, se o Worker falhar, fatias na thread principal com o mesmo motor.
-   Progresso e Cancelar nos dois caminhos. */
+/* Cálculo grande sem travar a página: Worker (Blob) e, se ele falhar, fatias
+   na thread principal com o mesmo motor. Todo caminho termina em fim, erro ou cancelado. */
 (function (g) {
   'use strict';
   var V = g.Visual = g.Visual || {};
@@ -35,65 +34,84 @@
   }
   V.tarefaGauss = function (A, b, modo, cbs) {
     cbs = cbs || {};
-    var cancelado = false, worker = null, url = null, encerrado = false;
-    function fim(exp, via) { if (!cancelado) cbs.fim(exp, via); }
+    var cancelado = false, worker = null, url = null;
+    var terminou = false, fallbackPedido = false;
+    function acabar(fn) {
+      if (terminou) return;
+      terminou = true;
+      try { if (worker) worker.terminate(); } catch (e) {}
+      if (url) { try { URL.revokeObjectURL(url); } catch (e2) {} url = null; }
+      fn();
+    }
+    function falhar(msg) {
+      acabar(function () { if (cbs.erro) cbs.erro(msg); else if (cbs.fim) cbs.fim(null, 'erro'); });
+    }
     function fatiar() {
-      if (cancelado || encerrado) return;
-      var t = g.Metodos.criarEliminacao(A, b, modo);
+      if (terminou || cancelado || fallbackPedido) return;
+      fallbackPedido = true;
+      var t;
+      try { t = g.Metodos.criarEliminacao(A, b, modo); }
+      catch (e) { falhar(e && e.message); return; }
       var lote = Math.max(1, Math.round(A.length / 40));
       function tick() {
-        if (cancelado) { if (cbs.cancelado) cbs.cancelado(); return; }
-        var p = t.avancar(lote);
+        if (cancelado) { acabar(function () { if (cbs.cancelado) cbs.cancelado(); }); return; }
+        var p;
+        try { p = t.avancar(lote); }
+        catch (e) { falhar(e && e.message); return; }
+        if (terminou || cancelado) return;
         if (cbs.progresso) cbs.progresso(p.k, p.n);
         if (!p.feito) { setTimeout(tick, 0); return; }
-        var r = t.exportar();
-        try { r.condicao = g.Metodos.estimarCondicao1(A, r.U, r.mult, r.ordem); } catch (e) { r.condicao = null; }
-        if (modo !== 'nunca') { fim(r, 'fatiado'); return; }
-        var t2 = g.Metodos.criarEliminacao(A, b, 'sempre');
+        var r;
+        try {
+          r = t.exportar();
+          r.condicao = g.Metodos.estimarCondicao1(A, r.U, r.mult, r.ordem);
+        } catch (e2) { if (r) r.condicao = null; else { falhar(e2 && e2.message); return; } }
+        if (modo !== 'nunca') { acabar(function () { cbs.fim(r, 'fatiado'); }); return; }
+        var t2;
+        try { t2 = g.Metodos.criarEliminacao(A, b, 'sempre'); }
+        catch (e3) { acabar(function () { cbs.fim(r, 'fatiado'); }); return; }
         function comparar() {
-          if (cancelado) { if (cbs.cancelado) cbs.cancelado(); return; }
-          var p2 = t2.avancar(lote);
+          if (cancelado) { acabar(function () { if (cbs.cancelado) cbs.cancelado(); }); return; }
+          var p2;
+          try { p2 = t2.avancar(lote); }
+          catch (e4) { acabar(function () { cbs.fim(r, 'fatiado'); }); return; }
           if (cbs.progresso) cbs.progresso(p2.k, p2.n);
           if (!p2.feito) { setTimeout(comparar, 0); return; }
-          r.refX = t2.exportar().x;
-          fim(r, 'fatiado');
+          try { r.refX = t2.exportar().x; } catch (e5) {}
+          acabar(function () { cbs.fim(r, 'fatiado'); });
         }
         comparar();
       }
       tick();
+    }
+    function pedirFallback() {
+      if (terminou || cancelado) return;
+      try { if (worker) worker.terminate(); } catch (e) {}
+      worker = null;
+      fatiar();
     }
     try {
       url = URL.createObjectURL(new Blob([scriptWorker()], { type: 'text/javascript' }));
       worker = new Worker(url);
     } catch (e) {
       fatiar();
-      return { cancelar: function () { cancelado = true; }, modo: 'fatiado' };
+      return { cancelar: cancelar, modo: 'fatiado' };
     }
     worker.onmessage = function (ev) {
-      if (encerrado) return;
+      if (terminou) return;
       var d = ev.data || {};
       if (d.tipo === 'progresso') { if (cbs.progresso) cbs.progresso(d.k, d.n); }
-      else if (d.tipo === 'fim') { encerrado = true; try { worker.terminate(); } catch (e) {} if (url) URL.revokeObjectURL(url); fim(d.r, 'worker'); }
-      else if (d.tipo === 'erro') { encerrado = true; try { worker.terminate(); } catch (e2) {} fatiar(); }
+      else if (d.tipo === 'fim') acabar(function () { cbs.fim(d.r, 'worker'); });
+      else if (d.tipo === 'erro') pedirFallback();
     };
-    worker.onerror = function () {
-      if (encerrado || cancelado) return;
-      encerrado = true;
-      try { worker.terminate(); } catch (e) {}
-      if (url) URL.revokeObjectURL(url);
-      fatiar();
-    };
+    worker.onerror = function () { pedirFallback(); };
     try { worker.postMessage({ A: A, b: b, modo: modo }); }
-    catch (e) { encerrado = true; try { worker.terminate(); } catch (e2) {} fatiar(); return { cancelar: function () { cancelado = true; }, modo: 'fatiado' }; }
-    return {
-      modo: 'worker',
-      cancelar: function () {
-        if (cancelado) return;
-        cancelado = true; encerrado = true;
-        try { worker.terminate(); } catch (e) {}
-        if (url) URL.revokeObjectURL(url);
-        if (cbs.cancelado) cbs.cancelado();
-      },
-    };
+    catch (e) { pedirFallback(); }
+    function cancelar() {
+      if (terminou || cancelado) return;
+      cancelado = true;
+      acabar(function () { if (cbs.cancelado) cbs.cancelado(); });
+    }
+    return { modo: fallbackPedido ? 'fatiado' : 'worker', cancelar: cancelar };
   };
 })(typeof window !== 'undefined' ? window : globalThis);
