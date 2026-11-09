@@ -6,13 +6,15 @@
 (function (g) {
   'use strict';
   var V = g.Visual = g.Visual || {};
-  var MIN = 2, MAX = 100, MAX_GRADE = 10;
+  var MIN = 2, MAX_GRADE = 10;
+  function maxN() { return (g.Metodos && g.Metodos.N_MAX) || 100; }
   function inteiro(rnd, a, b) { return a + Math.floor(rnd() * (b - a + 1)); }
   V.gaussEntrada = {
-    MIN: MIN, MAX: MAX, MAX_GRADE: MAX_GRADE,
+    MIN: MIN, MAX_GRADE: MAX_GRADE,
+    get MAX() { return maxN(); },
     limitarN: function (v) {
       var n = Math.round(+v); if (!isFinite(n)) return { n: 3, ajustado: true };
-      var m = Math.min(MAX, Math.max(MIN, n)); return { n: m, ajustado: m !== +v };
+      var m = Math.min(maxN(), Math.max(MIN, n)); return { n: m, ajustado: m !== +v };
     },
     redimensionar: function (M, n) {
       M = M || []; var nAnt = M.length, R = [];

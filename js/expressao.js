@@ -64,6 +64,9 @@ function tokenizar(expr) {
     }
     if ((c >= '0' && c <= '9') || c === '.') {
       const ini = i;
+      if (/^0[xX][0-9a-fA-F]/.test(expr.slice(i)) || /^0[bB][01]/.test(expr.slice(i))) {
+        throw erroSintaxe('Notação hexadecimal ou binária não é aceita', ini, expr);
+      }
       while (i < expr.length && /[0-9]/.test(expr[i])) i++;
       if (expr[i] === '.') { i++; while (i < expr.length && /[0-9]/.test(expr[i])) i++; }
       const corpo = expr.slice(ini, i);
@@ -77,7 +80,12 @@ function tokenizar(expr) {
       }
       const texto = expr.slice(ini, i);
       const valor = Number(texto);
-      if (!Number.isFinite(valor)) throw erroSintaxe(`Número inválido ou grande demais: "${texto}"`, ini, expr);
+      const mantissa = texto.replace(/^[+-]/, '').replace(/[eE].*$/, '');
+      const escritoNaoZero = /[1-9]/.test(mantissa);
+      const minNormal = 2.2250738585072014e-308;
+      if (!Number.isFinite(valor) || (valor === 0 && escritoNaoZero) || (valor !== 0 && Math.abs(valor) < minNormal)) {
+        throw erroSintaxe(`Número fora da faixa normal da precisão dupla: "${texto}"`, ini, expr);
+      }
       tokens.push({ tipo: 'num', valor, pos: ini, texto });
       continue;
     }

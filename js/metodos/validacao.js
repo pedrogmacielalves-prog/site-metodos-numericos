@@ -17,10 +17,17 @@
     catch (e) { return falhar(e.codigo || 'ERRO_SINTAXE', rotulo + ': ' + (e.mensagem || e.message)); }
   }
   function numero(v, rotulo) {
-    // Aceita vírgula decimal ("1,5"), como o formulário do Gauss.
-    const n = typeof v === 'string' && v.trim() !== '' ? Number(v.trim().replace(',', '.')) : v;
-    if (typeof n !== 'number' || !Number.isFinite(n)) falhar('ENTRADA_INVALIDA', `"${rotulo}" deve ser um número válido.`);
-    return n;
+    if (typeof v === 'number') {
+      if (!Number.isFinite(v)) falhar('ENTRADA_INVALIDA', `"${rotulo}" deve ser um número finito.`);
+      if (v !== 0 && Math.abs(v) < Metodos.MIN_NORMAL) falhar('ENTRADA_INVALIDA', `"${rotulo}" está na subfaixa da precisão dupla.`);
+      return v;
+    }
+    const r = Metodos.analisarNumero(v);
+    if (!r.ok) {
+      const pos = r.posicao != null ? ` (posição ${r.posicao + 1})` : '';
+      falhar('ENTRADA_INVALIDA', `"${rotulo}": ${r.erro}${pos}.`);
+    }
+    return r.valor;
   }
   // ε/tol padrão quando o campo vem ausente/null/'' (decisão do usuário: relativo = 0,01,
   // como a tabela da professora). Absoluto: sem padrão (null), tol continua obrigatório.
@@ -82,7 +89,8 @@
     const fa = f(a), fb = f(b);
     if (!finito(fa)) falhar('FUNCAO_NAO_DEFINIDA', `f não está definida em x = ${fmt(a)} (extremo a). Escolha outro intervalo.`);
     if (!finito(fb)) falhar('FUNCAO_NAO_DEFINIDA', `f não está definida em x = ${fmt(b)} (extremo b). Escolha outro intervalo.`);
-    if (fa * fb > 0) falhar('SEM_TROCA_DE_SINAL', `f(a)·f(b) > 0: f(${fmt(a)}) = ${fmt(fa)} e f(${fmt(b)}) = ${fmt(fb)} têm o mesmo sinal. Escolha um intervalo onde f troque de sinal.`);
+    // Sem multiplicar: f = 1e−200 tem o mesmo sinal nos dois extremos, mas o produto vira 0.
+    if (fa !== 0 && fb !== 0 && (fa < 0) === (fb < 0)) falhar('SEM_TROCA_DE_SINAL', `f(a) e f(b) têm o mesmo sinal: f(${fmt(a)}) = ${fmt(fa)} e f(${fmt(b)}) = ${fmt(fb)}. Escolha um intervalo onde f troque de sinal.`);
     return { f, a, b, fa, fb, tol, maxIter, criterio };
   }
 
@@ -105,12 +113,15 @@
       }
       const resultado = { raiz: r.raiz, fRaiz: v.f(r.raiz), iteracoes: r.passos.length, convergiu: r.convergiu, motivo: r.motivo, iteracoesEstimadas, criterio: v.criterio, tol: v.tol };
       if (pareceDescontinuidade(r.passos, v.fa, v.fb)) {
-        resultado.convergiu = false; resultado.motivo = 'DESCONTINUIDADE';
         const c = r.passos[r.passos.length - 1];
-        return { passos: r.passos, resultado, codigoErro: 'DESCONTINUIDADE',
-          erro: `Provável descontinuidade, não raiz: o intervalo encolheu perto de x = ${fmt(c.c)}, mas |f(c)| cresceu (f(c) = ${fmt(c.fc)}). f deve ter um polo ali (troca de sinal sem raiz). Escolha um intervalo onde f seja contínua.` };
+        avisar(avisos, 'DESCONTINUIDADE', `Heurística de descontinuidade (não é uma prova): o intervalo encolheu perto de x = ${fmt(c.c)}, mas |f| cresceu (f(c) = ${fmt(c.fc)}). Pode haver um polo; confira se f é contínua nesse intervalo.`);
       }
-      if (!r.convergiu) return { passos: r.passos, resultado, erro: 'Máximo de iterações atingido sem atingir a tolerância.', codigoErro: 'NAO_CONVERGIU' };
+      if (!r.convergiu) {
+        const msg = v.maxIter === 1
+          ? 'Com apenas 1 iteração o intervalo só foi cortado uma vez e a tolerância não foi atingida. Aumente o máximo de iterações ou afrouxe a tolerância.'
+          : 'Máximo de iterações atingido sem atingir a tolerância.';
+        return { passos: r.passos, resultado, erro: msg, codigoErro: 'NAO_CONVERGIU' };
+      }
       return { passos: r.passos, resultado, erro: null, codigoErro: null };
     });
   }
@@ -144,7 +155,7 @@
     }
     const x0 = numero(p.x0, 'x0');
     const { tol, maxIter, criterio } = parametrosIterativos(p);
-    if (!finito(f(x0)) || !finito(df(x0))) falhar('FUNCAO_NAO_DEFINIDA', `f ou f' não é finita em x0 = ${fmt(x0)}.`);
+    if (!finito(f(x0)) || !finito(df(x0))) falhar('FUNCAO_NAO_DEFINIDA', mensagemForaDeX0(f, df, x0));
     return { f, df, x0, tol, maxIter, criterio, tipoDerivada, derivadaTexto };
   }
 
@@ -170,24 +181,57 @@
   }
   // BUG-32: relativo + raiz em 0 (ex.: x³). Últimos 6 passos com |x| decrescendo
   // monotonamente e erro relativo estagnado (≥ 0,9× o de 5 passos antes).
-  function raizEmZeroRelativo(passos) {
+  function raizEmZeroRelativo(passos, f) {
     if (passos.length < 6) return false;
     const u = passos.slice(-6), ax = u.map((s) => Math.abs(s.xNovo));
     const decresce = ax.every((v, i) => i === 0 || v < ax[i - 1]);
     const e0 = u[0].erroCriterio, e5 = u[5].erroCriterio;
-    return decresce && e0 != null && e5 != null && e5 >= 0.9 * e0;
+    if (!(decresce && e0 != null && e5 != null && e5 >= 0.9 * e0)) return false;
+    const xU = u[5].xNovo;
+    let fU = u[5].fx;
+    if (typeof f === 'function' && Number.isFinite(xU)) { try { fU = f(xU); } catch (e) { fU = NaN; } }
+    // x²+1 chega perto de 0 com f ainda O(1): não é raiz.
+    if (!Number.isFinite(fU) || Math.abs(fU) > 1e-4) return false;
+    // x³−1e−18: o sinal troca antes de 0, então a raiz não está em 0.
+    if (typeof f === 'function' && xU !== 0 && fU !== 0) {
+      const f2 = f(xU / 8);
+      if (Number.isFinite(f2) && f2 !== 0 && (fU < 0) !== (f2 < 0)) return false;
+    }
+    return true;
   }
 
   const MENSAGENS_NEWTON = {
     DERIVADA_ZERO: (x) => `Derivada ≈ 0 em x = ${fmt(x)}: a tangente é horizontal e não cruza o eixo x. Tente outro x0.`,
     DIVERGENCIA: () => 'O método divergiu (|x| ou o erro cresceu demais). Tente um x0 mais perto da raiz.',
     OSCILACAO: () => 'Os valores de x entraram em ciclo (oscilação) e não convergem. Tente outro x0.',
-    NAO_CONVERGIU: () => 'Máximo de iterações atingido sem convergir.',
+    NAO_CONVERGIU: (x, maxIter) => maxIter === 1
+      ? 'Foi dado apenas 1 passo de Newton e a tolerância não foi atingida. Aumente o máximo de iterações ou escolha um x0 mais perto da raiz.'
+      : 'Máximo de iterações atingido sem convergir.',
     RAIZ_EM_ZERO_CRITERIO_RELATIVO: (x) => `Os iterados convergem para x = 0, uma raiz múltipla (último x = ${fmt(x)}); o erro relativo |Δx|/|x| não diminui quando a raiz é 0 (fica em ≈ 0,5). Use o critério absoluto.`,
     FUNCAO_NAO_DEFINIDA: (x) => `f ou f' não está definida em x = ${fmt(x)} (o passo saiu do domínio de f). Tente outro x0.`,
   };
 
   // Procura, na árvore de f, a operação que deixou f(x) indefinida e devolve a causa em palavras.
+  function mensagemForaDeX0(f, df, x0) {
+    const fx = f(x0), dfx = df(x0);
+    if (!finito(fx)) {
+      const causa = causaForaDoDominio(f.ast, x0);
+      if (causa && /faixa|709/.test(causa)) {
+        return `x0 = ${fmt(x0)}: exp(x) sai da faixa da precisão dupla (estoura perto de x = 709; o maior número finito é cerca de 1e308). Escolha um x0 menor.`;
+      }
+      if (causa && /negativ|zero|não definid/.test(causa)) {
+        return `x0 = ${fmt(x0)} está fora do domínio de f (${causa}). Escolha um x0 dentro do domínio — logaritmo e raiz quadrada, por exemplo, pedem x > 0.`;
+      }
+      if (causa) return `x0 = ${fmt(x0)} está fora do domínio de f (${causa}). Escolha outro x0.`;
+      return `f(x0) não é finita em x0 = ${fmt(x0)}: o valor saiu da faixa da precisão dupla (até cerca de 1e308; exp(x) estoura perto de x = 709). Escolha um x0 menor.`;
+    }
+    if (!finito(dfx)) {
+      const formula = df.texto ? ` (f'(x) = ${df.texto})` : '';
+      return `Em x0 = ${fmt(x0)}, f está definida, mas f' não é finita${formula}. O passo de Newton não pode ser calculado. Tente outro x0.`;
+    }
+    return `f ou f' não é finita em x0 = ${fmt(x0)}.`;
+  }
+
   function causaForaDoDominio(no, x) {
     if (!no || typeof no !== 'object') return null;
     for (const filho of [no.arg, no.esq, no.dir]) {
@@ -200,6 +244,7 @@
       if (!finito(a) || finito(val(no))) return null;
       if (/^(ln|log|log10|log2)$/.test(no.nome)) return `${no.nome} de ${a === 0 ? 'zero' : 'número negativo'}`;
       if (no.nome === 'sqrt') return 'raiz quadrada de número negativo';
+      if (no.nome === 'exp') return 'exponencial fora da faixa (exp estoura perto de 709)';
       if (/^(asin|acos)$/.test(no.nome)) return `${no.nome} fora de [−1, 1]`;
       return `${no.nome} não definida nesse ponto`;
     }
@@ -234,7 +279,7 @@
       else if (r.motivo === 'MAX_ITERACOES') codigo = diagnosticarNewton(passos);
       else if (!r.convergiu) codigo = r.motivo;
       // BUG-32: o desfecho vira RAIZ_EM_ZERO_CRITERIO_RELATIVO (erro; raiz sugerida = último x).
-      if (v.criterio === 'relativo' && /^(DERIVADA_ZERO|NAO_CONVERGIU|MAX_ITERACOES)$/.test(codigo || r.motivo) && raizEmZeroRelativo(passos)) codigo = 'RAIZ_EM_ZERO_CRITERIO_RELATIVO';
+      if (v.criterio === 'relativo' && /^(DERIVADA_ZERO|NAO_CONVERGIU|MAX_ITERACOES)$/.test(codigo || r.motivo) && raizEmZeroRelativo(passos, v.f)) codigo = 'RAIZ_EM_ZERO_CRITERIO_RELATIVO';
       // Salto grande: f'(x) pequena manda x para longe (|Δx| > 5·max(1, |x0|)). Avisa só o 1º.
       const escala = 5 * Math.max(1, Math.abs(v.x0));
       const salto = passos.find((s) => Math.abs(s.xNovo - s.x) > escala);
@@ -242,7 +287,14 @@
         const k = salto.k, F = Metodos.fmtBR;
         avisar(avisos, 'SALTO_GRANDE', `Salto grande na iteração ${k + 1}: f'(x${k}) = ${F(salto.dfx)} é pequena, e x foi de ${F(salto.x)} para x${k + 1} = ${F(salto.xNovo)}.`);
       }
-      if (r.motivo === 'RAIZ_EXATA' && Math.abs(v.df(r.raiz)) < 1e-12) avisar(avisos, 'RAIZ_MULTIPLA', 'A derivada também é zero na raiz (raiz múltipla).');
+      if (r.motivo === 'RAIZ_EXATA') {
+        const dR = v.df(r.raiz), d0 = v.df(v.x0);
+        const rel = Number.isFinite(d0) && Math.abs(d0) > 0 ? Math.abs(dR) / Math.abs(d0) : 0;
+        // 1e−20·(x−1) tem derivada constante e pequena: não é raiz múltipla.
+        if (dR === 0 || (Number.isFinite(dR) && rel < 1e-8 && Math.abs(dR) <= 1e-12 * Math.max(1, Math.abs(r.raiz)))) {
+          avisar(avisos, 'RAIZ_MULTIPLA', 'A derivada também é zero na raiz (raiz múltipla).');
+        }
+      }
       else if ((r.convergiu || codigo === 'RAIZ_EM_ZERO_CRITERIO_RELATIVO') && convergenciaLinear(passos)) avisar(avisos, 'CONVERGENCIA_LENTA', 'Convergência lenta (linear): provável raiz múltipla, onde f e f\' se anulam juntas.');
       avisarFallback(avisos, passos, v.tol, r.motivo);
       const resultado = {
@@ -250,7 +302,18 @@
         fRaiz: finito(r.raiz) ? v.f(r.raiz) : null, iteracoes: passos.length, convergiu: r.convergiu,
         criterio: v.criterio, tol: v.tol, motivo: codigo || r.motivo, derivadaNumerica: v.tipoDerivada === 'numerica', tipoDerivada: v.tipoDerivada, derivadaTexto: v.derivadaTexto,
       };
-      return { passos, resultado, erro: codigo ? (erroDominio || MENSAGENS_NEWTON[codigo](r.raiz)) : null, codigoErro: codigo };
+      let erro = codigo ? (erroDominio || MENSAGENS_NEWTON[codigo](r.raiz, v.maxIter)) : null;
+      if (codigo === 'NAO_CONVERGIU' && passos.length) {
+        const ult = passos[passos.length - 1];
+        const fv = Number.isFinite(ult.xNovo) ? v.f(ult.xNovo) : ult.fx;
+        if (Number.isFinite(fv) && Math.abs(fv) > 1e-2) {
+          erro = (v.maxIter === 1
+            ? 'Foi dado apenas 1 passo de Newton e a tolerância não foi atingida. '
+            : 'Máximo de iterações atingido sem convergir. ') +
+            `O último x = ${fmt(ult.xNovo)} não é raiz: f(x) = ${fmt(fv)} ainda está longe de zero. Aumente o máximo de iterações ou escolha outro x0; se f não troca de sinal, pode não haver raiz real.`;
+        }
+      }
+      return { passos, resultado, erro, codigoErro: codigo };
     });
   }
 
@@ -264,11 +327,13 @@
     falhar('ENTRADA_INVALIDA', 'pivoteamento deve ser "automatico", "sempre" ou "nunca" (ou true/false).');
   }
 
-  const norma = (v) => Math.sqrt(v.reduce((s, x) => s + x * x, 0));
+  const norma = (v) => Metodos.norma2(v);
   // Resíduo relativo ||A·x − b|| / ||b|| (se b = 0, devolve ||A·x − b||).
   function residuoRelativo(A, b, x) {
-    const r = A.map((l, i) => l.reduce((t, a, j) => t + a * x[j], 0) - b[i]);
-    return norma(r) / (norma(b) || 1);
+    const abs = residuoAbsoluto(A, b, x);
+    if (abs == null) return null;
+    const nb = norma(b);
+    return nb ? abs / nb : abs;
   }
 
   function validarGauss(p) {
@@ -279,7 +344,7 @@
     } else { A = p.A; b = p.b; }
     if (!Array.isArray(A) || A.length < 1 || !A.every(Array.isArray)) falhar('ENTRADA_INVALIDA', 'Informe a matriz do sistema.');
     const n = A.length;
-    if (n < 2 || n > 100) falhar('ENTRADA_INVALIDA', `O sistema deve ter entre 2 e 100 equações (recebi ${n}).`);
+    if (n < Metodos.N_MIN || n > Metodos.N_MAX) falhar('ENTRADA_INVALIDA', Metodos.msgTamanhoN(n));
     if (A.some((l) => l.length !== n)) falhar('MATRIZ_NAO_QUADRADA', 'A matriz aumentada deve ser n×(n+1) (A quadrada).');
     if (!Array.isArray(b) || b.length !== n) falhar('DIMENSOES_INCOMPATIVEIS', `O vetor b deve ter ${n} elementos.`);
     const conv = (i) => (v, j) => numero(v, j < n ? `linha ${i + 1}, coluna ${j + 1} da matriz` : `linha ${i + 1}, coluna b`);
@@ -322,30 +387,10 @@
     });
   }
 
-  // Número de condição cond∞(A) = ‖A‖∞·‖A⁻¹‖∞, com A⁻¹ por Gauss-Jordan com pivoteamento
-  // parcial (O(n³), ok até n = 100). Infinity se A for singular na precisão da máquina.
-  // Limiar 1e8: o erro relativo esperado em x é ~cond·ε, então acima de 1e8 metade
-  // (ou mais) dos ~16 algarismos de precisão pode estar perdida.
+  // Estimativa de cond₁ (Hager/Higham sobre a LU). Limiar 1e8: acima disso,
+  // cond·ε come metade ou mais dos ~16 algarismos. null = não deu para estimar.
   const LIMIAR_COND = 1e8;
-  function condicaoInf(A) {
-    const n = A.length, normaInf = (X) => Math.max(...X.map((l) => l.reduce((s, v) => s + Math.abs(v), 0)));
-    const M = A.map((l, i) => [...l, ...l.map((_, j) => (i === j ? 1 : 0))]);
-    for (let k = 0; k < n; k++) {
-      let p = k;
-      for (let i = k + 1; i < n; i++) if (Math.abs(M[i][k]) > Math.abs(M[p][k])) p = i;
-      if (M[p][k] === 0) return Infinity;
-      [M[k], M[p]] = [M[p], M[k]];
-      const piv = M[k][k];
-      for (let j = 0; j < 2 * n; j++) M[k][j] /= piv;
-      for (let i = 0; i < n; i++) {
-        if (i === k || M[i][k] === 0) continue;
-        const f = M[i][k];
-        for (let j = k; j < 2 * n; j++) M[i][j] -= f * M[k][j];
-      }
-    }
-    const c = normaInf(A) * normaInf(M.map((l) => l.slice(n)));
-    return Number.isFinite(c) ? c : Infinity;
-  }
+  const MSG_COND_FALHOU = 'Não foi possível estimar a condição nesta escala numérica.';
   function contarTrocas(passos) {
     const t = { total: 0, obrigatorias: 0, recomendadas: 0, classicas: 0 };
     const chave = { obrigatoria: 'obrigatorias', recomendada: 'recomendadas', classica: 'classicas' };
@@ -354,9 +399,90 @@
     }
     return t;
   }
-  function executarGaussOperacao(v, gran, avisos) {
+  // Posto de A e de [A|b] num único escalonamento, com linhas equilibradas (max |a_ij| = 1).
+  // Quase singular (pivô só "pequeno", não estruturalmente nulo) não vira "infinitas soluções".
+  function classificarPosto(A, b) {
+    const n = A.length;
+    let estruturalInconsistente = false;
+    const M = A.map((lin, i) => {
+      let s = 0;
+      for (let j = 0; j < n; j++) s = Math.max(s, Math.abs(lin[j]));
+      if (!(s > 0)) {
+        if (b[i] !== 0 && Number.isFinite(b[i])) estruturalInconsistente = true;
+        return new Array(n + 1).fill(0);
+      }
+      const row = lin.map((v) => v / s);
+      row.push(b[i] / s);
+      return row;
+    });
+    const tol = n * Number.EPSILON * 8;
+    let rank = 0, maiorDescartado = 0;
+    for (let c = 0; c < n && rank < n; c++) {
+      let p = rank, best = Math.abs(M[rank][c]);
+      for (let i = rank + 1; i < n; i++) {
+        const a = Math.abs(M[i][c]);
+        if (a > best) { best = a; p = i; }
+      }
+      if (!(best > tol)) { if (best > maiorDescartado) maiorDescartado = best; continue; }
+      if (p !== rank) { const tmp = M[rank]; M[rank] = M[p]; M[p] = tmp; }
+      const piv = M[rank][c];
+      for (let i = rank + 1; i < n; i++) {
+        const f = M[i][c] / piv;
+        if (!Number.isFinite(f)) { estruturalInconsistente = true; break; }
+        for (let j = c; j <= n; j++) M[i][j] -= f * M[rank][j];
+        M[i][c] = 0;
+      }
+      rank++;
+    }
+    let maiorB = 0;
+    for (let i = rank; i < n; i++) maiorB = Math.max(maiorB, Math.abs(M[i][n] || 0));
+    const postoA = rank;
+    const bSignificativo = estruturalInconsistente || maiorB > tol;
+    const postoAug = Math.min(n, bSignificativo ? postoA + 1 : postoA);
+    let classificacao;
+    if (postoA < postoAug) classificacao = 'impossivel';
+    else if (maiorDescartado > 0) classificacao = 'quase_singular';
+    else classificacao = 'infinitas_solucoes';
+    return { postoA, postoAug, classificacao };
+  }
+  function residuoAbsoluto(A, b, x) {
+    const r = [];
+    for (let i = 0; i < A.length; i++) {
+      let s = -b[i];
+      if (!Number.isFinite(s)) return null;
+      for (let j = 0; j < x.length; j++) {
+        const p = A[i][j] * x[j];
+        if (!Number.isFinite(p)) return null;
+        s += p;
+      }
+      if (!Number.isFinite(s)) return null;
+      r.push(s);
+    }
+    const nrm = Metodos.norma2(r);
+    return Number.isFinite(nrm) ? nrm : null;
+  }
+  function aplicarCondicao(avisos, A, r) {
+    const condicao = r && Object.prototype.hasOwnProperty.call(r, 'condicaoPronta')
+      ? r.condicaoPronta
+      : ((r.mult && r.U && r.ordem) ? Metodos.estimarCondicao1(A, r.U, r.mult, r.ordem) : null);
+    if (condicao == null) avisar(avisos, 'CONDICAO_INDISPONIVEL', MSG_COND_FALHOU);
+    else if (!(condicao <= LIMIAR_COND)) {
+      const F = Metodos.fmtBR;
+      const perda = F(Math.min(1, condicao * Number.EPSILON));
+      avisar(avisos, 'MAL_CONDICIONADA', `Matriz mal condicionada: estimativa de cond₁(A) ≈ ${F(condicao)} > 1,000e+8. O erro relativo em x pode chegar a cond·ε ≈ ${perda}, mesmo com resíduo pequeno.`);
+    }
+    return condicao;
+  }
+  function executarGaussOperacao(v, gran, avisos, pronto) {
       const n = v.A.length;
-      const r = Metodos.gauss(v.A, v.b, v.pivoteamento, gran);
+      const r = pronto || Metodos.gauss(v.A, v.b, v.pivoteamento, gran);
+      if (r.motivo === 'FORA_DA_FAIXA') {
+        return {
+          passos: r.passos, resultado: { x: null, classificacao: 'fora_da_faixa', pivoteamento: v.pivoteamento },
+          codigoErro: 'FORA_DA_FAIXA',
+          erro: 'O cálculo saiu da faixa dos números do computador (precisão dupla, até cerca de 1e308). x não é finito e o resíduo não seria confiável. Reescale A e b para uma faixa mais moderada.',
+        };
+      }
       if (r.motivo === 'PIVO_ZERO_SEM_TROCA') {
         const k = r.coluna + 1;
         return {
@@ -365,38 +491,33 @@
         };
       }
       if (r.motivo === 'MATRIZ_SINGULAR') {
-        const tol = Metodos.toleranciaPivo(v.A);
-        const aumentada = v.A.map((l, i) => [...l, v.b[i]]);
-        const pA = posto(v.A, tol), pAug = posto(aumentada, Math.max(tol, n * Number.EPSILON * Math.max(...v.b.map(Math.abs))));
-        const classificacao = pA < pAug ? 'impossivel' : 'infinitas_solucoes';
-        // Código próprio por classificação: o painel Avisos destaca só o item certo.
-        if (classificacao === 'impossivel') avisar(avisos, 'SISTEMA_IMPOSSIVEL', 'posto(A) < posto([A | b]): as equações se contradizem.');
-        else avisar(avisos, 'SISTEMA_INDETERMINADO', 'posto(A) = posto([A | b]) < n: há variáveis livres.');
+        const cls = classificarPosto(v.A, v.b);
+        if (cls.classificacao === 'impossivel') avisar(avisos, 'SISTEMA_IMPOSSIVEL', 'posto(A) < posto([A | b]): as equações se contradizem.');
+        else if (cls.classificacao === 'infinitas_solucoes') avisar(avisos, 'SISTEMA_INDETERMINADO', 'posto(A) = posto([A | b]) < n: há variáveis livres.');
+        const texto = cls.classificacao === 'impossivel'
+          ? 'O sistema é impossível (não tem solução).'
+          : cls.classificacao === 'quase_singular'
+            ? 'A matriz é numericamente quase singular (pivô abaixo da tolerância relativa à escala da linha). Quase singularidade não prova que existam infinitas soluções.'
+            : 'O sistema tem infinitas soluções.';
         return {
-          passos: r.passos, resultado: { x: null, classificacao, postoA: pA, postoAumentada: pAug },
-          erro: `Sistema singular: não há pivô não nulo na coluna ${r.coluna + 1}. ` +
-            (classificacao === 'impossivel' ? 'O sistema é impossível (não tem solução).' : 'O sistema tem infinitas soluções.'),
+          passos: r.passos, resultado: { x: null, classificacao: cls.classificacao, postoA: cls.postoA, postoAumentada: cls.postoAug },
+          erro: `Sistema singular: não há pivô não nulo na coluna ${r.coluna + 1}. ${texto}`,
           codigoErro: 'MATRIZ_SINGULAR',
         };
       }
-      const U = r.passos[r.passos.length - 1].matriz;
+      const diag = r.diag || (Metodos.matrizDoPasso(r.passos[r.passos.length - 1]) || []).map((l, i) => l[i]);
       const trocas = contarTrocas(r.passos);
       let determinante = trocas.total % 2 ? -1 : 1;
-      for (let i = 0; i < n; i++) determinante *= U[i][i];
-      const residuo = Math.sqrt(v.A.reduce((s, l, i) => {
-        const ri = l.reduce((t, a, j) => t + a * r.x[j], 0) - v.b[i];
-        return s + ri * ri;
-      }, 0));
-      const condicao = condicaoInf(v.A);
-      const resultado = { x: r.x, determinante, residuo, trocas, classificacao: 'unica', pivoteamento: v.pivoteamento, condicao };
-      if (!(condicao <= LIMIAR_COND)) {
-        const F = Metodos.fmtBR, c = Number.isFinite(condicao) ? `≈ ${F(condicao)}` : '≥ 1,000e+16';
-        const perda = Number.isFinite(condicao) ? F(Math.min(1, condicao * Number.EPSILON)) : '1';
-        avisar(avisos, 'MAL_CONDICIONADA', `Matriz mal condicionada: cond∞(A) ${c} > 1,000e+8. O erro relativo em x pode chegar a cond·ε ≈ ${perda}, mesmo com resíduo pequeno.`);
-      }
+      for (let i = 0; i < n; i++) determinante *= diag[i];
+      if (!Number.isFinite(determinante)) determinante = null;
+      const residuo = residuoAbsoluto(v.A, v.b, r.x);
+      if (residuo == null) avisar(avisos, 'RESIDUO_INDISPONIVEL', 'Não foi possível calcular o resíduo nesta escala numérica.');
+      const condicao = aplicarCondicao(avisos, v.A, r);
+      const resultado = { x: r.x, determinante, residuo, trocas, classificacao: 'unica', pivoteamento: v.pivoteamento, condicao, condicaoEstimada: condicao != null };
       if (v.pivoteamento === 'nunca') {
-        // Compara com o pivoteamento clássico ('sempre'), usado como referência x_ref.
-        const ref = Metodos.gauss(v.A, v.b, 'sempre', 'coluna');
+        // Referência sem histórico. Se o motor assíncrono já resolveu, não refaz na thread da página.
+        const refX = r.refX || (Metodos.gauss(v.A, v.b, 'sempre', 'nenhum').x);
+        const ref = { x: refX };
         if (ref.x) {
           const dif = (x) => norma(x.map((xi, i) => xi - ref.x[i])) / (norma(ref.x) || 1);
           resultado.comparacao = {
@@ -441,15 +562,15 @@
       }
       const linha = [];
       for (let j = 0; j < celulas.length; j++) {
-        const t = virgulaDecimal ? celulas[j].replace(',', '.') : celulas[j];
-        const v = /^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/.test(t) ? Number(t) : NaN;
-        if (!Number.isFinite(v)) return { invalido: { linha: i + 1, coluna: j + 1, celula: celulas[j], vazia: false } };
-        linha.push(v);
+        const lido = Metodos.analisarNumero(celulas[j]);
+        if (!lido.ok) return { invalido: { linha: i + 1, coluna: j + 1, celula: celulas[j], vazia: false, posicao: lido.posicao, erro: lido.erro } };
+        linha.push(lido.valor);
       }
       matriz.push(linha);
     }
     return { matriz };
   }
+  Metodos.lerBlocoTexto = function (texto) { return lerGradeTexto(texto, temTabOuPontoVirgula(texto)); };
   const textoVazio = (t) => String(t == null ? '' : t).trim() === '';
   const temTabOuPontoVirgula = (t) => /[\t;]/.test(String(t == null ? '' : t));
 
@@ -460,12 +581,13 @@
     if (g.invalido) {
       const e = g.invalido;
       if (e.vazia) return falha(`Linha ${e.linha}, coluna ${e.coluna} vazia.`);
-      return falha(`Linha ${e.linha}, coluna ${e.coluna}: "${e.celula}" não é um número.`);
+      const pos = e.posicao != null ? ` (posição ${e.posicao + 1} na célula)` : '';
+      return falha(`Linha ${e.linha}, coluna ${e.coluna}: "${e.celula}" ${e.erro || 'não é um número'}${pos}.`);
     }
     const matriz = g.matriz;
     const colunas = matriz[0].length, linhas = matriz.length;
     if (matriz.some((l) => l.length !== colunas)) return falha('Todas as linhas devem ter o mesmo número de colunas.');
-    if (linhas < 2 || linhas > 100) return falha(`A matriz deve ter entre 2 e 100 linhas (recebi ${linhas}).`);
+    if (linhas < Metodos.N_MIN || linhas > Metodos.N_MAX) return falha(Metodos.msgTamanhoN(linhas));
     if (colunas !== linhas && colunas !== linhas + 1) return falha(`Esperado n×n ou n×(n+1); recebi ${linhas}×${colunas}.`);
     const aumentada = colunas === linhas + 1;
     return {
@@ -488,10 +610,11 @@
     if (gA.invalido) {
       const e = gA.invalido;
       if (e.vazia) return falha('A', `Célula vazia em A, linha ${e.linha}, coluna ${e.coluna}`, e.linha, e.coluna);
-      return falha('A', `Valor inválido em A, linha ${e.linha}, coluna ${e.coluna}: "${e.celula}"`, e.linha, e.coluna);
+      const posA = e.posicao != null ? ` (posição ${e.posicao + 1})` : '';
+      return falha('A', `Valor inválido em A, linha ${e.linha}, coluna ${e.coluna}: "${e.celula}"${e.erro ? ' — ' + e.erro : ''}${posA}`, e.linha, e.coluna);
     }
     const A = gA.matriz, n = A.length;
-    if (n < 2 || n > 100) return falha('A', `A precisa ter entre 2 e 100 linhas; encontrei ${n}.`);
+    if (n < Metodos.N_MIN || n > Metodos.N_MAX) return falha('A', Metodos.msgTamanhoN(n));
     for (let i = 0; i < n; i++) {
       if (A[i].length !== n) {
         return falha('A', `A tem ${n} linhas, mas a linha ${i + 1} tem ${A[i].length} valores (A precisa ser quadrada)`, i + 1);
@@ -525,8 +648,10 @@
    * semente opcional ⇒ resultado reprodutível (PRNG mulberry32).
    */
   Metodos.gerarSistema = function (n, semente) {
-    n = Math.floor(Number(n));
-    if (!(n >= 2 && n <= 100)) throw new Error('n deve estar entre 2 e 100.');
+    const bruto = Number(n);
+    if (!Number.isInteger(bruto)) throw new Error('n deve ser um inteiro entre ' + Metodos.faixaN() + '.');
+    n = bruto;
+    if (!(n >= Metodos.N_MIN && n <= Metodos.N_MAX)) throw new Error('n deve ser um inteiro entre ' + Metodos.faixaN() + '.');
     let estado = (semente == null ? Math.floor(Math.random() * 2 ** 32) : Number(semente)) >>> 0;
     const aleatorio = function () { // mulberry32: número em [0, 1)
       estado = (estado + 0x6D2B79F5) >>> 0;
@@ -549,6 +674,23 @@
     return { A, b, x };
   };
 
+  Metodos.apresentarMotor = function (params, exp) {
+    if (Array.isArray(params)) params = { A: params, b: exp && exp.b };
+    params = params || {};
+    return executarComSeguranca(function (avisos) {
+      const v = validarGauss(params);
+      const montado = Metodos.passosDeMotor(v.A, v.b, exp || {});
+      const pronto = {
+        passos: montado.passos, x: exp.x, motivo: exp.motivo, coluna: exp.coluna,
+        diag: exp.diag, mult: exp.mult, ordem: exp.ordem, U: exp.U,
+        condicaoPronta: exp.condicao, historico: montado.historico,
+      };
+      const r0 = executarGaussOperacao(v, 'coluna', avisos, pronto);
+      avisar(avisos, 'MODO_COLUNA', 'Modo por coluna: um passo por coluna de pivô (matriz grande).');
+      if (r0.resultado) r0.resultado.granularidade = 'coluna';
+      return r0;
+    });
+  };
   Metodos.validacao = { bisseccao: validarBisseccao, newton: validarNewton, gauss: validarGauss };
   Metodos.executar = { bisseccao: executarBisseccao, newton: executarNewton, gauss: executarGauss };
   if (typeof module !== 'undefined' && module.exports) module.exports = Metodos;

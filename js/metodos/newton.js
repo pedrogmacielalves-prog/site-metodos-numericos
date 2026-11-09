@@ -31,8 +31,13 @@
       const explodiu = !Number.isFinite(x) || Math.abs(x) > limite;
       if (explodiu) return fim(false, 'DIVERGENCIA');
 
-      // 2º) Tangente horizontal (f'(x) ≈ 0) nunca cruza o eixo x.
-      if (Math.abs(dfx) < 1e-12) return fim(false, 'DERIVADA_ZERO');
+      // 2º) Tangente horizontal. O limiar é relativo a |f| e |x|:
+      // |f'| = 1e−20 ainda resolve 1e−20·(x−1) num passo; |f'| = 0 não.
+      const escalaX = Math.max(1, Math.abs(x));
+      const passo = dfx === 0 ? Infinity : fx / dfx;
+      const derivadaInutil = !Number.isFinite(dfx) || dfx === 0 || !Number.isFinite(passo)
+        || Math.abs(dfx) * escalaX <= Number.EPSILON * Math.abs(fx);
+      if (derivadaInutil) return fim(false, 'DERIVADA_ZERO');
 
       // @etapa:passoNewton — a tangente em x cruza o eixo x em xNovo
       const xNovo = x - fx / dfx;

@@ -14,11 +14,18 @@
         return '<span class="' + (v == null ? 'vazio' : (destaque === k ? 'novo' : '')) + '"' + (v == null ? '' : ' title="' + V.completo(v) + '"') + '>x' + (k + 1) + ' = ' + t[k] + '</span>';
       }).join('');
     }
+    function matrizDe(p) {
+      if (!p) return null;
+      if (p.matriz) return p.matriz;
+      var M = g.Metodos && g.Metodos.matrizDoPasso;
+      return M ? M(p) : null;
+    }
     function mostrarCompacto(p) {
       if (!mapa) mapa = new V.MapaMatriz(el.mapa, el.mapaDica, el.mapaStatus);
-      mapa.carregar(p.matriz, p);
-      var n0 = p.matriz.length; el.descricao.textContent = V.br((p.tipo === 'substituicao' || p.tipo === 'fim') && n0 > 10 ? 'Substituição regressiva concluída: as ' + n0 + ' componentes de x estão na lista abaixo.' : (p.descricao || ''));
-      var n = p.matriz.length; solucao(p.x || new Array(n).fill(null), null);
+      var Mp = matrizDe(p);
+      mapa.carregar(Mp, p);
+      var n0 = Mp.length; el.descricao.textContent = V.br((p.tipo === 'substituicao' || p.tipo === 'fim') && n0 > 10 ? 'Substituição regressiva concluída: as ' + n0 + ' componentes de x estão na lista abaixo.' : (p.descricao || ''));
+      solucao(p.x || new Array(n0).fill(null), null);
     }
     return {
       carregar: function (res) { passos = res.passos; modo = res.modoPivo || 'automatico'; resultado = res.resultado; if (el.pivo) el.pivo.innerHTML = ''; if (el.comparacao) el.comparacao.innerHTML = ''; if (el.seloMapa) el.seloMapa.hidden = true; escala = V.escalaMatriz(passos[0] && passos[0].matriz); el.matriz.innerHTML = ''; el.solucao.innerHTML = ''; el.solucao.classList.remove('solucao--lista'); el.descricao.textContent = '';
@@ -32,7 +39,7 @@
         if (compacto) { mostrarCompacto(p);
           if (el.seloMapa) el.seloMapa.hidden = true; // selo fica no HTML acima do mapa (#pivo-gauss)
           return; }
-        var M = p.matriz, n = M.length, txt = M.map(function (linha, r) { return linha.map(function (v, c) { var ehPivo = c === r || (p.pivo && p.pivo.linha === r && p.pivo.coluna === c); var w = ehPivo ? v : V.limpar(v, escala); return V.sig(w, 4); }); }),
+        var M = matrizDe(p), n = M.length, txt = M.map(function (linha, r) { return linha.map(function (v, c) { var ehPivo = c === r || (p.pivo && p.pivo.linha === r && p.pivo.coluna === c); var w = ehPivo ? v : V.limpar(v, escala); return V.sig(w, 4); }); }),
           temCient = M.some(function (l, r) { return l.some(function (v, c) { var w = c === r ? v : V.limpar(v, escala); return w !== 0 && isFinite(w) && V.extremo(w); }); }),
           largo = V.largo(), cols = 'grid-template-columns: 2.4em repeat(' + (n + 1) + ', ' + (largo ? 'minmax(0, 1fr)' : temCient ? 'minmax(4.5em, 1fr)' : 'minmax(5.2em, 1fr)') + ')';
         var html = '<div class="mv-cabeca" style="' + cols + '"><span></span>' + M.map(function (_, c) { return '<span class="rotulo">x' + (c + 1) + '</span>'; }).join('') + '<span class="rotulo rotulo-b">b</span></div>';

@@ -69,13 +69,15 @@
     var ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = css('--canvas-fundo'); ctx.fillRect(0, 0, W, H);
     var gg = this.geo(), M = this.M, p = this.passo || {}, mx = 0, i, j;
-    for (i = 0; i < n; i++) for (j = 0; j < n; j++) mx = Math.max(mx, Math.abs(M[i][j]));
-    var mxb = 0; for (i = 0; i < n; i++) mxb = Math.max(mxb, Math.abs(M[i][n])); var lmxb = Math.log10(1 + mxb) || 1, cBpos = css('--canvas-vetor-b'), cBneg = cBpos, cBborda = css('--canvas-vetor-b-borda');
+    var passoMx = n > 256 ? Math.ceil(n / 256) : 1;
+    for (i = 0; i < n; i += passoMx) for (j = 0; j < n; j += passoMx) mx = Math.max(mx, Math.abs(M[i][j]));
+    var mxb = 0; for (i = 0; i < n; i += passoMx) mxb = Math.max(mxb, Math.abs(M[i][n])); var lmxb = Math.log10(1 + mxb) || 1, cBpos = css('--canvas-vetor-b'), cBneg = cBpos, cBborda = css('--canvas-vetor-b-borda');
     var lmx = Math.log10(1 + mx) || 1, cPos = css('--canvas-intervalo-borda'), cNeg = css('--canvas-erro'), cZero = css('--canvas-grade'), cPiv = css('--canvas-pivo');
     var X = function (jj) { return gg.x0 + (jj < n ? jj : n + gg.gap) * gg.cel; };
     ctx.save(); ctx.beginPath(); ctx.rect(gg.rot, gg.rot, W - gg.rot, H - gg.rot); ctx.clip();
     var s = Math.max(gg.cel - (gg.cel > 6 ? 1 : 0), 0.5);
-    for (i = 0; i < n; i++) { var y = gg.y0 + i * gg.cel; if (y > H || y + gg.cel < 0) continue;
+    if (gg.cel < 1.5) { this.desenharAmostra(ctx, gg, W, H, n, M, lmx, lmxb, cPos, cNeg, cZero, cBpos, cBneg); }
+    else for (i = 0; i < n; i++) { var y = gg.y0 + i * gg.cel; if (y > H || y + gg.cel < 0) continue;
       for (j = 0; j <= n; j++) { var x = X(j); if (x > W || x + gg.cel < 0) continue; var v = M[i][j];
         if (Math.abs(v) < 1e-12) { ctx.globalAlpha = 0.25; ctx.fillStyle = cZero; }
         else if (j === n) { ctx.globalAlpha = 0.25 + 0.75 * Math.min(1, Math.log10(1 + Math.abs(v)) / lmxb); ctx.fillStyle = v > 0 ? cBpos : cBneg; } // b: escala e tons próprios
@@ -100,5 +102,48 @@
     var passoX = Math.max(1, Math.ceil(30 / gg.cel)); if (passoX > 1) passoX = Math.ceil(passoX / 10) * 10;
     for (j = 0; j < n; j += passoX) { var xx = X(j) + gg.cel / 2; var tx = 'x' + (j + 1), lw2 = ctx.measureText(tx).width / 2; if (xx - lw2 > gg.rot - 10 && xx + lw2 < X(n) - 2 && xx + lw2 < W) ctx.fillText(tx, xx, gg.rot / 2); }
     var xbl = X(n) + gg.cel / 2; if (xbl < W) ctx.fillText('b', xbl, gg.rot / 2);
+  };
+  function corRGBA(cor) {
+    var m = /rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)/.exec(String(cor || ''));
+    if (m) return [+m[1], +m[2], +m[3]];
+    var h = /^#([0-9a-f]{6})$/i.exec(String(cor || '').trim());
+    if (h) return [parseInt(h[1].slice(0, 2), 16), parseInt(h[1].slice(2, 4), 16), parseInt(h[1].slice(4, 6), 16)];
+    return [140, 160, 190];
+  }
+  /* Poucos pixels por célula: uma amostra por pixel (o maior |v| do bloco), não n² retângulos. */
+  P.desenharAmostra = function (ctx, gg, W, H, n, M, lmx, lmxb, cPos, cNeg, cZero, cBpos, cBneg) {
+    var x0 = Math.max(0, Math.floor(Math.min(gg.x0, W - 1)));
+    var y0 = Math.max(0, Math.floor(Math.min(gg.y0, H - 1)));
+    var pw = Math.max(1, Math.min(960, Math.floor(W - x0)));
+    var ph = Math.max(1, Math.min(720, Math.floor(H - y0)));
+    var img = ctx.createImageData(pw, ph), d = img.data;
+    var z0 = corRGBA(cZero), zp = corRGBA(cPos), zn = corRGBA(cNeg), bp = corRGBA(cBpos), bn = corRGBA(cBneg);
+    for (var py = 0; py < ph; py++) {
+      var i0 = Math.max(0, Math.min(n - 1, Math.floor(((y0 + py) - gg.y0) / gg.cel)));
+      var i1 = Math.max(i0 + 1, Math.min(n, Math.floor(((y0 + py + 1) - gg.y0) / gg.cel)));
+      var saltoI = Math.max(1, Math.floor((i1 - i0) / 3));
+      for (var px = 0; px < pw; px++) {
+        var xx0 = ((x0 + px) - gg.x0) / gg.cel, xx1 = ((x0 + px + 1) - gg.x0) / gg.cel;
+        var best = 0, bestJ = -1, any = false;
+        var passos = Math.max(1, Math.min(4, Math.ceil(xx1 - xx0)));
+        for (var s = 0; s < passos; s++) {
+          var xx = xx0 + (xx1 - xx0) * (s + 0.5) / passos;
+          var j = xx < n ? Math.floor(xx) : (xx >= n + gg.gap ? n : -1);
+          if (j < 0 || j > n) continue;
+          for (var i = i0; i < i1; i += saltoI) {
+            var v = M[i][j]; if (v == null || !isFinite(v)) continue;
+            if (!any || Math.abs(v) > Math.abs(best)) { best = v; bestJ = j; any = true; }
+          }
+        }
+        var o = (py * pw + px) * 4;
+        if (!any) continue;
+        var alpha, rgb;
+        if (Math.abs(best) < 1e-12) { alpha = 0.25; rgb = z0; }
+        else if (bestJ === n) { alpha = 0.25 + 0.75 * Math.min(1, Math.log10(1 + Math.abs(best)) / lmxb); rgb = best > 0 ? bp : bn; }
+        else { alpha = 0.2 + 0.8 * Math.min(1, Math.log10(1 + Math.abs(best)) / lmx); rgb = best > 0 ? zp : zn; }
+        d[o] = rgb[0]; d[o + 1] = rgb[1]; d[o + 2] = rgb[2]; d[o + 3] = Math.round(alpha * 255);
+      }
+    }
+    ctx.putImageData(img, x0, y0);
   };
 })(window);

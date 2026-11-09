@@ -4,6 +4,119 @@
   'use strict';
   const Metodos = g.Metodos = g.Metodos || {};
 
+  /* Limites do sistema linear. N_MAX é o limite prático medido (tempo, memória, histórico e mapa),
+     não um teto teórico. N_GRADE: grade editável e passos operação a operação. */
+  /* Este Node não expõe Number.MIN_NORMAL; 2⁻¹⁰²² é o menor normal da precisão dupla. */
+  Metodos.MIN_NORMAL = 2.2250738585072014e-308;
+  Metodos.N_MIN = 2;
+  Metodos.N_GRADE = 10;
+  Metodos.N_MAX = 1000;
+  Metodos.N_MODO_GRANDE = 400;
+  Metodos.faixaN = function () { return Metodos.N_MIN + ' e ' + Metodos.N_MAX; };
+  Metodos.msgTamanhoN = function (n) {
+    return 'O sistema deve ter entre ' + Metodos.faixaN() + ' equações (recebi ' + n + '). É o limite prático nos ambientes testados.';
+  };
+
+  /**
+   * Um número de célula ou de texto colado.
+   * Aceita vírgula decimal, − (U+2212), – (U+2013) e notação científica.
+   * Rejeita hexadecimal/binário e não nulos fora da faixa normal (subnormal ou que viram 0, como 1e-999).
+   * Devolve { ok, valor } ou { ok:false, erro, posicao } (posição no texto original).
+   */
+  Metodos.analisarNumero = function (texto) {
+    const original = String(texto == null ? '' : texto);
+    const ini = original.search(/\S/);
+    if (ini < 0) return { ok: false, erro: 'valor vazio', posicao: 0 };
+    const s = original.slice(ini).trim();
+    const norm = s.replace(/[−–]/g, '-');
+    const hex = norm.search(/0[xXbBoO]/);
+    if (hex >= 0) return { ok: false, erro: 'notação hexadecimal ou binária não é aceita', posicao: ini + hex };
+    if (!/^[+-]?(\d+([.,]\d*)?|[.,]\d+)([eE][+-]?\d+)?$/.test(norm)) {
+      return { ok: false, erro: 'não é um número', posicao: ini };
+    }
+    if ((norm.match(/[.,]/g) || []).length > 1) {
+      return { ok: false, erro: 'há mais de um separador decimal', posicao: ini + norm.search(/[.,]/) };
+    }
+    const v = Number(norm.replace(',', '.'));
+    const mantissa = norm.replace(/^[+-]/, '').replace(/[eE].*$/, '');
+    const escritoNaoZero = /[1-9]/.test(mantissa);
+    if (!Number.isFinite(v)) return { ok: false, erro: 'número fora da faixa da precisão dupla', posicao: ini };
+    if (v === 0 && escritoNaoZero) return { ok: false, erro: 'número não nulo abaixo da faixa normal (a precisão dupla o torna 0)', posicao: ini };
+    if (v !== 0 && Math.abs(v) < Metodos.MIN_NORMAL) return { ok: false, erro: 'número na subfaixa (subnormal); não é aceito', posicao: ini };
+    return { ok: true, valor: v };
+  };
+
+  /** Norma euclidiana escalada: não estoura com valores grandes nem some com valores minúsculos. */
+  Metodos.norma2 = function (v) {
+    let m = 0;
+    for (let i = 0; i < v.length; i++) {
+      const a = Math.abs(v[i]);
+      if (a > m) m = a;
+    }
+    if (!(m > 0)) return 0;
+    if (!Number.isFinite(m)) return Infinity;
+    let s = 0;
+    for (let i = 0; i < v.length; i++) { const t = v[i] / m; s += t * t; }
+    const n = m * Math.sqrt(s);
+    return Number.isFinite(n) ? n : Infinity;
+  };
+
+  /**
+   * Histórico compacto da eliminacão: guarda a matriz inicial, as operações e
+   * algumas fotos dentro de um orçamento de memória. matrizDoPasso / em(k)
+   * reconstroem a matriz depois da coluna k (−1 = início) sem guardar n cópias.
+   */
+  Metodos.criarHistorico = function (M0) {
+    const n = M0.length;
+    const inicial = Metodos.copiarMatriz(M0);
+    const ops = [];
+    const bytes = n * (n + 1) * 8;
+    const orcamento = 48 * 1024 * 1024;
+    const maxCk = Math.max(2, Math.floor(orcamento / Math.max(bytes, 1)));
+    const stride = Math.max(1, Math.ceil((n + 1) / maxCk));
+    const checks = [{ k: -1, M: inicial }];
+    const trabalho = { k: -1, M: null };
+    function anotar(op, M) {
+      ops.push(op);
+      if ((op.k + 1) % stride === 0 || op.k === n - 1) checks.push({ k: op.k, M: Metodos.copiarMatriz(M) });
+    }
+    function aplicar(M, op) {
+      const k = op.k, p = op.linha;
+      if (p != null && p !== k) { const tmp = M[k]; M[k] = M[p]; M[p] = tmp; }
+      const fats = op.fatores || [];
+      for (let t = 0; t < fats.length; t++) {
+        const i = fats[t].linha, fator = fats[t].fator;
+        for (let j = k; j <= n; j++) M[i][j] -= fator * M[k][j];
+        M[i][k] = 0;
+      }
+    }
+    function em(alvo) {
+      if (alvo == null || alvo < 0) return inicial;
+      let ck = checks[0];
+      for (let i = 0; i < checks.length; i++) { if (checks[i].k <= alvo) ck = checks[i]; else break; }
+      if (ck.k === alvo) return ck.M;
+      let M, k0;
+      if (trabalho.M && trabalho.k <= alvo && trabalho.k >= ck.k) { M = trabalho.M; k0 = trabalho.k; }
+      else { M = Metodos.copiarMatriz(ck.M); k0 = ck.k; }
+      for (let o = 0; o < ops.length; o++) if (ops[o].k > k0 && ops[o].k <= alvo) aplicar(M, ops[o]);
+      trabalho.k = alvo; trabalho.M = M;
+      return M;
+    }
+    return {
+      n: n, stride: stride, orcamento: orcamento,
+      anotar: anotar, em: em,
+      tamanho: function () { return checks.length * bytes; },
+      fotos: function () { return checks.length; },
+    };
+  };
+
+  Metodos.matrizDoPasso = function (p) {
+    if (!p) return null;
+    if (p.matriz) return p.matriz;
+    if (p._hist && p._i != null) return p._hist.em(p._i);
+    return null;
+  };
+
   /** Formata um número com 6 algarismos significativos, sem "lixo" de ponto flutuante. */
   Metodos.fmt = function (v) {
     if (typeof v !== 'number' || !Number.isFinite(v)) return String(v);
@@ -104,7 +217,7 @@
    * - modo 'coluna': um passo por coluna de pivô; guarda só pivô/troca/fatores e
    *   copia a matriz UMA vez, ao fim da coluna (n + 3 cópias no total).
    */
-  Metodos.registrador = function (passos, M, modo) {
+  Metodos.registrador = function (passos, M, modo, hist) {
     const n = M.length;
     if (modo !== 'coluna') {
       return function (tipo, campos, dados) {
@@ -117,17 +230,32 @@
     }
     let coluna = null;
     const fecharColuna = function () {
-      coluna.matriz = Metodos.copiarMatriz(M);
+      if (hist) {
+        hist.anotar({
+          k: coluna.k,
+          linha: coluna._swap != null ? coluna._swap : coluna.k,
+          fatores: coluna.fatores.map(function (f) { return { linha: f.linha, fator: f.fator }; }),
+        }, M);
+        coluna._hist = hist;
+        coluna._i = coluna.k;
+      } else coluna.matriz = Metodos.copiarMatriz(M);
       coluna.descricao = Metodos.textos.gauss('coluna', coluna);
       Object.assign(coluna, Metodos.etapasGauss('coluna', coluna.pivo, coluna.fatores.length > 0));
       passos.push(coluna);
       coluna = null;
     };
+    function comHist(passo, indice) {
+      if (!hist) { passo.matriz = Metodos.copiarMatriz(M); return passo; }
+      passo._hist = hist;
+      passo._i = indice;
+      if (indice < 0) passo.matriz = hist.em(-1);
+      return passo;
+    }
     return function (tipo, campos, dados) {
       if (tipo === 'troca' || tipo === 'pivo') {
         const k = campos.pivo.coluna;
         if (!coluna) coluna = { tipo: 'coluna', etapa: 'eliminacao', fase: 'eliminacao', k, troca: null, fatores: [] };
-        if (tipo === 'troca') coluna.troca = [campos.linhas[1], campos.linhas[0]];
+        if (tipo === 'troca') { coluna.troca = [campos.linhas[1], campos.linhas[0]]; coluna._swap = campos.linhas[1]; }
         coluna.pivo = campos.pivo;
         coluna.linhaPivo = k;
         if (tipo === 'pivo' && k === n - 1) fecharColuna(); // última coluna: nada a eliminar
@@ -136,14 +264,14 @@
         if (campos.linhaAlvo === n - 1) fecharColuna(); // última linha da coluna
       } else if (tipo === 'substituicao') {
         if (campos.indice !== 0) return; // só o passo final, com o x completo
-        passos.push(Object.assign({ tipo }, campos, { etapa: 'substituicao', etapas: ['substituicao'] }, {
-          fase: 'substituicao', matriz: Metodos.copiarMatriz(M),
+        passos.push(comHist(Object.assign({ tipo }, campos, { etapa: 'substituicao', etapas: ['substituicao'] }, {
+          fase: 'substituicao',
           descricao: `Substituição regressiva: x${n} até x1 calculados de baixo para cima.`,
-        }));
+        }), n - 1));
       } else {
-        passos.push(Object.assign({ tipo }, campos, Metodos.etapasGauss(tipo), {
-          fase: faseDe(tipo), descricao: Metodos.textos.gauss(tipo, dados || campos), matriz: Metodos.copiarMatriz(M),
-        }));
+        passos.push(comHist(Object.assign({ tipo }, campos, Metodos.etapasGauss(tipo), {
+          fase: faseDe(tipo), descricao: Metodos.textos.gauss(tipo, dados || campos),
+        }), tipo === 'inicio' ? -1 : n - 1));
       }
     };
   };
@@ -162,10 +290,9 @@
    * { troca: null | { tipo, motivo, descricao, de, para, valorOriginal, valorNovo },
    *   decisao: 'troca' | 'sem_troca', pequeno }.
    */
-  Metodos.descreverTroca = function (M, k, escolha) {
+  Metodos.montarTroca = function (k, escolha, original, novo) {
     if (!escolha.tipo) return { troca: null, decisao: 'sem_troca', pequeno: escolha.pequeno };
     const p = escolha.linha, f = Metodos.fmtBR;
-    const original = M[k][k], novo = M[p][k];
     const [tNovo, tOrig] = Metodos.fmtPar(Math.abs(novo), Math.abs(original));
     const textos = {
       pivo_zero: `pivô a${k + 1}${k + 1} = ${f(original)} é zero numérico: troca obrigatória com L${p + 1} (|a| = ${f(Math.abs(novo))})`,
@@ -176,6 +303,10 @@
       troca: { tipo: escolha.tipo, motivo: escolha.motivo, descricao: textos[escolha.motivo], de: p, para: k, valorOriginal: original, valorNovo: novo },
       decisao: 'troca', pequeno: escolha.pequeno,
     };
+  };
+  Metodos.descreverTroca = function (M, k, escolha) {
+    const p = escolha.linha;
+    return Metodos.montarTroca(k, escolha, M[k][k], M[p][k]);
   };
 
   /** Tolerância para considerar um pivô "zero", relativa ao tamanho dos números da matriz. */

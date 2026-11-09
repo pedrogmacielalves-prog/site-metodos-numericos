@@ -43,7 +43,7 @@ canvas.grafico-canvas { width: 100%; height: 380px; display: block; border-radiu
 /* Gauss: entrada */
 .entrada-matriz { display: grid; gap: var(--esp-1); }
 .entrada-matriz { align-items: center; }
-.entrada-matriz .input { min-width: 3.2em; width: 100%; padding: 0 4px; text-align: center; min-height: 40px; font-family: var(--fonte-mono); font-size: var(--fs-sm); }
+.entrada-matriz .input { min-width: 3.2em; width: 100%; padding: 0 4px; text-align: right; min-height: 40px; font-family: var(--fonte-mono); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
 .entrada-matriz .rotulo-col, .entrada-matriz .rotulo-lin { font-family: var(--fonte-mono); font-size: var(--fs-sm); color: var(--cor-texto-suave); text-align: center; }
 .entrada-matriz .col-b-rot { border-left: 3px solid var(--cor-borda-forte); }
 .entrada-matriz .col-b { border-left-width: 3px; }
@@ -294,3 +294,25 @@ canvas.grafico-canvas:focus-visible { outline: 2px solid var(--cor-foco, var(--c
 .dica-precisao { color: var(--cor-texto); }
 .dica-precisao[hidden] { display: none; }
 .dica-precisao .badge { margin-right: var(--esp-1); }
+
+/* Grade A | b: blocos separados, foco visível e não coberto pela coluna b sticky */
+fieldset.entrada-bloco { border: 0; margin: 0; padding: 0; min-width: 0; }
+fieldset.entrada-bloco > legend { padding: 0; float: none; }
+/* o título fora da rolagem não pode invadir os rótulos x1, x2… */
+.entrada-titulo--fora { margin: 0 0 var(--esp-2); position: static; z-index: auto; }
+.dimensao-sistema { margin: 0; font-family: var(--fonte-mono); font-size: var(--fs-sm); color: var(--cor-texto); }
+#rolagem-entrada { scroll-padding-inline-start: 2.6em; scroll-padding-inline-end: 8em; }
+#rolagem-entrada input[data-l] { scroll-margin-inline-start: 2.8em; scroll-margin-inline-end: 8.5em; text-align: right; }
+#rolagem-entrada input[data-l]:focus { outline: 3px solid var(--cor-foco); outline-offset: 2px; position: relative; z-index: 4; }
+#rolagem-entrada input[aria-invalid="true"] { outline: 3px solid var(--cor-erro); box-shadow: inset 0 0 0 2px var(--cor-erro); }
+.resumo-erros { margin: var(--esp-2) 0 0; padding: var(--esp-2) var(--esp-3); border: 2px solid var(--cor-erro); border-radius: var(--raio-sm); background: var(--cor-superficie); }
+.resumo-erros[hidden] { display: none; }
+.resumo-erros button { font: inherit; color: var(--cor-erro); background: transparent; border: 0; padding: 0; text-align: left; cursor: pointer; text-decoration: underline; }
+.acoes-calcular { margin-top: var(--esp-3); }
+.progresso-tarefa { display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-2); margin: 0 0 var(--esp-3); padding: var(--esp-2) var(--esp-3); border: 1px solid var(--cor-borda-forte); border-radius: var(--raio-md); background: var(--cor-superficie-2); }
+.progresso-tarefa[hidden] { display: none; }
+.progresso-tarefa p { margin: 0; flex: 1 1 12em; }
+.progresso-tarefa progress { flex: 1 1 8em; height: 0.7em; accent-color: var(--cor-primaria); }
+@media (pointer: coarse) {
+  .entrada-matriz .input, .entrada-matriz .input.cel--xs { font-size: 1rem; }
+}

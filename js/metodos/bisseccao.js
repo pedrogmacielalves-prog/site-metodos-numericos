@@ -20,21 +20,22 @@
 
     // Pré-condição: se f(a) e f(b) têm o mesmo sinal, não há
     // garantia de raiz em [a, b] e o método não se aplica.
-    if (fa * fb > 0) return fim(false, 'SEM_TROCA_DE_SINAL');
+    // Compara os sinais sem multiplicar: 1e−200 · 1e−200 vira 0.
+    if (fa !== 0 && fb !== 0 && (fa < 0) === (fb < 0)) return fim(false, 'SEM_TROCA_DE_SINAL');
 
     for (let k = 1; k <= maxIter; k++) {
-      // @etapa:pontoMedio — divide o intervalo ao meio
-      c = (a + b) / 2;
+      // @etapa:pontoMedio — ponto médio estável (a+b estoura se a e b são grandes)
+      c = a + (b - a) / 2;
       const fc = f(c);
 
       // A raiz está a no máximo meio intervalo de c: esse é o erro.
       const erro = (b - a) / 2;
       const erroRelativo = Metodos.erroRelativo(erro, c);
 
-      // @etapa:testeSinal — a raiz fica na metade com troca de sinal
+      // @etapa:testeSinal — sinais opostos, sem multiplicar f(a)·f(c)
       let manter;
       if (fc === 0) manter = 'raiz';
-      else if (fa * fc < 0) manter = 'esquerda';
+      else if (fa !== 0 && fc !== 0 && (fa < 0) !== (fc < 0)) manter = 'esquerda';
       else manter = 'direita';
       // @etapa:criterioParada — raiz exata ou erro menor que tol
       const crit = Metodos.testeParada(criterio, c, cAnt, erro, tol);
