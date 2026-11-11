@@ -138,9 +138,8 @@
         avisar(avisos, 'ZERO_PRECISAO_DUPLA', `Zero observado em precisão dupla em x = ${fmt(r.raiz)}: f vale 0 nessa aritmética. É a parada do método, não uma certificação matemática de raiz.`);
         return { passos: r.passos, resultado, erro: null, codigoErro: null };
       }
-      if (r.motivo === 'TOLERANCIA' && pareceCrescimentoDeModulo(r.passos, v.fa, v.fb)) {
-        const u = r.passos[r.passos.length - 1];
-        avisar(avisos, 'MODULO_CRESCEU', `Possível descontinuidade (polo): |f(c)| não diminuiu enquanto o intervalo encolhia (f(c) = ${fmt(u.fc)} em c = ${String(+u.c.toPrecision(10)).replace('.', ',').replace('-', '−')}). Confira o gráfico: aí c pode não ser raiz.`);
+      if (r.motivo === 'TOLERANCIA' && pareceCrescimentoDeModulo(r.passos, v.fa, v.fb, v.f)) {
+        avisar(avisos, 'MODULO_CRESCEU', 'Confira o gráfico: |f| não diminuiu como esperado enquanto o intervalo encolhia. Pode haver uma quebra (polo ou salto) em vez de raiz.');
       }
       if (!r.convergiu) {
         const msg = v.maxIter === 1
@@ -156,12 +155,30 @@
    * Observação auxiliar, não um detector de descontinuidade. A parada por intervalo
    * já é condicional à continuidade mesmo quando isto não dispara.
    */
-  function pareceCrescimentoDeModulo(passos, fa0, fb0) {
-    // Função contínua: |f(c)| cai junto com o intervalo. Se, após ≥ 3 cortes, |f(c)| final
-    // ainda é ≥ max(|f(a)|, |f(b)|) iniciais, |f| não encolheu: sinal de polo/salto.
-    if (passos.length < 3) return false;
-    return Math.abs(passos[passos.length - 1].fc) >= Math.max(Math.abs(fa0), Math.abs(fb0));
+  // HEURÍSTICA (não detecta tudo): G = max(|f|) nos extremos do intervalo com troca de sinal.
+  // Continua a bissecção além da tolerância (até 60 cortes, só para diagnóstico) e olha os
+  // últimos ≤ 30 cortes: f contínua (|f| ~ |x − r|^p, p ≥ 1/2) faz G cair pelo menos 2^(−cortes/4);
+  // salto ou polo deixam G parado ou crescendo. Ponto onde f não é finita só encerra o refino.
+  function pareceCrescimentoDeModulo(passos, fa0, fb0, f) {
+    const G = [Math.max(Math.abs(fa0), Math.abs(fb0))];
+    let a, b, fa, fb;
+    for (const u of passos) {
+      if (u.manter === 'esquerda') { a = u.a; b = u.c; fa = u.fa; fb = u.fc; } else { a = u.c; b = u.b; fa = u.fc; fb = u.fb; }
+      G.push(Math.max(Math.abs(fa), Math.abs(fb)));
+    }
+    for (let i = 0; i < 60; i++) {
+      const c = a + (b - a) / 2;
+      if (c <= a || c >= b) break;
+      const fc = f(c);
+      if (!finito(fc)) break;
+      if (fc === 0) return false;
+      if ((fa < 0) !== (fc < 0)) { b = c; fb = fc; } else { a = c; fa = fc; }
+      G.push(Math.max(Math.abs(fa), Math.abs(fb)));
+    }
+    const n = G.length - 1, j = Math.max(0, n - 30), cortes = n - j;
+    return cortes >= 3 && G[n] >= G[j] * Math.pow(2, -cortes / 4);
   }
+
 
 
   // ------------------------------------------------------------------ Newton

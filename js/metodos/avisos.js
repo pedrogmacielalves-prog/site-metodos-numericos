@@ -39,11 +39,11 @@
         },
         {
           id: 'modulo-cresceu',
-          titulo: 'Possível descontinuidade (polo)',
-          quando: '|f| aumentou enquanto o intervalo encolhia. A nota registra o crescimento; não classifica a função.',
+          titulo: 'Possível polo ou descontinuidade',
+          quando: '|f| não diminuiu como esperado enquanto o intervalo encolhia. É uma heurística: não detecta todo polo ou salto.',
           solucao: 'Olhe o gráfico de f. Não trate a observação como uma classificação da função.',
           codigos: ['MODULO_CRESCEU'],
-          mensagem: 'Possível descontinuidade (polo): |f(c)| não diminuiu enquanto o intervalo encolhia',
+          mensagem: 'Confira o gráfico: |f| não diminuiu como esperado enquanto o intervalo encolhia.',
         },
         {
           id: 'funcao-nao-definida',

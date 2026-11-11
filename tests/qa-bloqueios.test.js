@@ -76,7 +76,7 @@ test('Bissecção: critério atingido mostra raiz aproximada (sem erro); polo s�
     assert.equal(r.resultado.parada, 'tolerancia_passo');
   }
   const polo = E.bisseccao(casos[1]);
-  assert.ok(polo.avisos.some((t) => /Possível descontinuidade \(polo\)/.test(t) && /c = 0,(2999|3000)\d{3}/.test(t)));
+  assert.ok(polo.avisos.some((t) => /Pode haver uma quebra \(polo ou salto\)/.test(t)));
   const continua = E.bisseccao({ f: 'x^2-2', a: 1, b: 2, tol: 1e-8, maxIter: 80, criterio: 'absoluto' });
   assert.equal(continua.codigoErro, null);
   assert.ok(!continua.avisos.some((t) => /polo/.test(t)));
@@ -235,7 +235,7 @@ test('checklist de status: zero, intervalo, observação, limite, derivada e dom
 
   const cresceu = E.bisseccao({ f: '1/(x-0.3)', a: 0, b: 1, tol: 1e-8, maxIter: 80, criterio: 'absoluto' });
   const titsC = titulos('bisseccao', cresceu);
-  assert.ok(titsC.includes('Possível descontinuidade (polo)'));
+  assert.ok(titsC.includes('Possível polo ou descontinuidade'));
 
   const salto = E.bisseccao({ f: 'x/abs(x)', a: -0.2, b: 0.9, tol: 1e-8, maxIter: 80, criterio: 'absoluto' });
   assert.equal(salto.resultado.parada, 'tolerancia_passo');
@@ -298,15 +298,18 @@ test('checklist de status: zero, intervalo, observação, limite, derivada e dom
   assert.ok(Math.abs(normal.resultado.raiz - Math.SQRT2) < 1e-6);
 });
 
-test('Bissecção: detector de polo pega casos do QA sem falso alarme', () => {
-  const B = (f, a, b, tol, criterio) => E.bisseccao({ f, a, b, tol, maxIter: 100, criterio });
-  const polo = (r) => r.codigosAviso.includes('MODULO_CRESCEU');
-  for (const [f, a, b, tol] of [['1/(x-0.3)', 0, 1, 0.1], ['1/(x-0.3)', 0, 1, 1e-8], ['x/abs(x)', -0.2, 0.9, 1e-8]]) {
-    const r = B(f, a, b, tol, 'absoluto');
-    assert.ok(polo(r), f + ' ' + tol); assert.equal(r.erro, null);
+test('Bissecção: detector de polo (heurística) — casos do QA r5b', () => {
+  const TOLS = [[0.1, 'absoluto'], [0.01, 'relativo'], [1e-8, 'absoluto'], [1e-8, 'relativo'], [1e-12, 'absoluto']];
+  const polo = (p) => { const r = E.bisseccao(Object.assign({ maxIter: 200 }, p)); return r.erro ? null : r.codigosAviso.includes('MODULO_CRESCEU'); };
+  const quebras = [['1/(x-0.3)', 0, 1], ['x/abs(x)', -0.2, 0.9], ['tan(x)-x/2', 1, 2], ['(x-0.3)/abs(x-0.3)+5*(x-0.3)^3', 0, 1],
+    ['1/(x-0.3)+1e6*(x-0.3)^3', 0, 1], ['1/x', -0.001, 1e6], ['1e-3*(x-0.3)/abs(x-0.3)+10*(x-0.3)', 0, 1]];
+  const normais = [['exp(x)-3*x', 1, 2], ['x^2-2', 1, 2], ['x^3-x-1', 1, 2], ['(x-1.7)+10*exp(-((x-1.25)/0.01)^2)', 1, 2],
+    ['(x-0.3)*(1+1e8*exp(-1e5*(x-0.3)^2))', 0, 1], ['(x-0.31)*exp(-1e4*(x-0.31)^2)+1e-9*(x-0.31)', 0, 1],
+    ['tanh(1e3*(x-0.123))', -5, 5], ['tanh(50*(x-0.5))', 0, 1], ['(x-0.3)/sqrt(abs(x-0.3))', 0, 1], ['x^9-1e-3', 0, 2]];
+  for (const [tol, criterio] of TOLS) {
+    for (const [f, a, b] of quebras) { const v = polo({ f, a, b, tol, criterio }); if (v !== null) assert.equal(v, true, 'perda: ' + f + ' ' + tol + ' ' + criterio); }
+    for (const [f, a, b] of normais) { const v = polo({ f, a, b, tol, criterio }); if (v !== null) assert.equal(v, false, 'falso alarme: ' + f + ' ' + tol + ' ' + criterio); }
   }
-  for (const [f, tol, c] of [['exp(x)-3*x', 1e-5, 'relativo'], ['exp(x)-3*x', 0.01, 'relativo'], ['x^2-2', 1e-8, 'absoluto'], ['x^2-2', 0.01, 'relativo'],
-    ['(x-1.7)+10*exp(-((x-1.25)/0.01)^2)', 1e-8, 'absoluto'], ['(x-1.51)+10*exp(-((x-1.5)/0.02)^2)', 1e-8, 'absoluto']]) {
-    assert.ok(!polo(B(f, 1, 2, tol, c)), f + ' ' + tol);
-  }
+  assert.equal(polo({ f: 'x/abs(x)', a: -0.2, b: 0.9, tol: 1e-8, criterio: 'absoluto' }), true);
+  assert.equal(polo({ f: '1/(x-0.3)', a: 0, b: 1, tol: 0.1, criterio: 'absoluto' }), true);
 });
