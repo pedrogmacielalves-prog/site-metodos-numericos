@@ -36,10 +36,10 @@
     const vazio = p.tol == null || (typeof p.tol === 'string' && p.tol.trim() === '');
     const padrao = Metodos.TOL_PADRAO[criterio];
     const tol = vazio && padrao != null ? padrao : numero(p.tol, 'tolerância');
-    const maxIter = Math.floor(numero(p.maxIter, 'máx. iterações'));
+    const maxBruto = numero(p.maxIter, 'máx. iterações'), maxIter = Math.floor(maxBruto);
     if (tol <= 0) falhar('ENTRADA_INVALIDA', 'A tolerância deve ser maior que zero.');
     if (maxIter < 1 || maxIter > 10000) falhar('ENTRADA_INVALIDA', 'Máx. iterações deve estar entre 1 e 10000.');
-    return { tol, maxIter, criterio, tolPadrao: vazio && padrao != null };
+    return { tol, maxIter, criterio, tolPadrao: vazio && padrao != null, maxIterArredondado: maxIter !== maxBruto && maxIter >= 1 ? maxBruto : null };
   }
   // Critério de parada: 'relativo' (padrão) ou 'absoluto' (aliases 'rel'/'abs').
   function criterioDeParada(c) {
@@ -55,6 +55,7 @@
     avisar(avisos, 'CRITERIO_RELATIVO_PERTO_DE_ZERO', (p.c != null ? `Erro relativo indefinido (c${p.k} ≈ 0); a parada usou |c${p.k} − c${p.k - 1}| = ${F(p.erroCriterio)} < ε = ${F(tol)}.` : `Erro relativo indefinido (x${p.k + 1} ≈ 0); a parada usou |x${p.k + 1} − x${p.k}| = ${F(p.erroCriterio)} < ε = ${F(tol)}.`));
   }
   const finito = Number.isFinite;
+  function avisarMaxIter(avisos, bruto, usado) { if (bruto != null) avisar(avisos, 'MAX_ITER_ARREDONDADO', `Máx. iterações precisa ser inteiro: ${fmt(bruto)} foi arredondado para baixo, ${usado}.`); }
 
   /** Parada numérica e garantia matemática são campos diferentes. raizCertificada fica falso: precisão dupla não prova raiz. */
   function camposDeParada(motivo, base) {
@@ -101,7 +102,8 @@
   function validarBisseccao(p, avisos) {
     const f = compilarExpressao(p.f, 'f(x)');
     let a = numero(p.a, 'a'), b = numero(p.b, 'b');
-    const { tol, maxIter, criterio } = parametrosIterativos(p);
+    const { tol, maxIter, criterio, maxIterArredondado } = parametrosIterativos(p);
+    avisarMaxIter(avisos, maxIterArredondado, maxIter);
     if (a === b) falhar('ENTRADA_INVALIDA', 'Os extremos a e b não podem ser iguais.');
     if (a > b) { [a, b] = [b, a]; avisar(avisos, 'EXTREMOS_TROCADOS', `Os extremos estavam invertidos; usei a = ${fmt(a)} e b = ${fmt(b)}.`); }
     const fa = f(a), fb = f(b);
@@ -131,7 +133,7 @@
       }
       const zeroObservado = r.motivo === 'ZERO_PRECISAO_DUPLA';
       const resultado = camposDeParada(r.motivo, {
-        raiz: r.raiz, fRaiz: v.f(r.raiz), iteracoes: r.passos.length, convergiu: zeroObservado || r.motivo === 'TOLERANCIA',
+        raiz: r.raiz, fRaiz: v.f(r.raiz), iteracoes: r.passos.length, convergiu: zeroObservado || r.motivo === 'TOLERANCIA', limitePrecisao: r.motivo === 'LIMITE_PRECISAO',
         iteracoesEstimadas, criterio: v.criterio, tol: v.tol,
       });
       if (zeroObservado) {
@@ -140,6 +142,11 @@
       }
       if (r.motivo === 'TOLERANCIA' && pareceCrescimentoDeModulo(r.passos, v.fa, v.fb, v.f)) {
         avisar(avisos, 'MODULO_CRESCEU', 'Confira o gráfico: |f| não diminuiu como esperado enquanto o intervalo encolhia. Pode haver uma quebra (polo ou salto) em vez de raiz.');
+      }
+      if (r.motivo === 'LIMITE_PRECISAO') {
+        const u = r.passos[r.passos.length - 1], meia = Math.abs(u.b - u.a) / 2;
+        return { passos: r.passos, resultado, codigoErro: 'LIMITE_PRECISAO',
+          erro: `Limite da precisão dupla: depois de ${r.passos.length} iterações o ponto médio deixou de mudar (números vizinhos diferem ~2,2e−16 em termos relativos), com meia largura ${fmt(meia)} e o critério ainda não atingido. c ≈ ${String(+r.raiz.toPrecision(16)).replace('.', ',').replace('-', '−')} é o resultado mais preciso possível; aumentar o máximo de iterações não ajuda — afrouxe a tolerância.` };
       }
       if (!r.convergiu) {
         const msg = v.maxIter === 1
@@ -189,19 +196,21 @@
   // ------------------------------------------------------------------ Newton
   function validarNewton(p, avisos) {
     const f = compilarExpressao(p.f, 'f(x)');
-    let df, tipoDerivada, derivadaTexto = null;
+    let df, tipoDerivada, derivadaTexto = null, avisoDer = null;
     if (p.df != null && String(p.df).trim() !== '') {
       df = compilarExpressao(p.df, "f'(x)"); tipoDerivada = 'fornecida'; derivadaTexto = df.texto;
     } else if (!p.derivadaNumerica) {
       df = g.Expressao.derivar(f); tipoDerivada = 'simbolica'; derivadaTexto = df.texto;
-      avisar(avisos, 'DERIVADA_SIMBOLICA', `Derivada calculada simbolicamente: f'(x) = ${derivadaTexto}`);
+      avisoDer = ['DERIVADA_SIMBOLICA', `Derivada calculada simbolicamente: f'(x) = ${derivadaTexto}`];
     } else {
       df = (x) => g.Expressao.derivadaNumerica(f, x); tipoDerivada = 'numerica';
-      avisar(avisos, 'DERIVADA_NUMERICA', "Derivada aproximada numericamente (diferença central).");
+      avisoDer = ['DERIVADA_NUMERICA', 'Derivada aproximada numericamente (diferença central).'];
     }
     const x0 = numero(p.x0, 'x0');
-    const { tol, maxIter, criterio } = parametrosIterativos(p);
-    if (!finito(f(x0)) || !finito(df(x0))) falhar('FUNCAO_NAO_DEFINIDA', mensagemForaDeX0(f, df, x0));
+    const { tol, maxIter, criterio, maxIterArredondado: arrN } = parametrosIterativos(p);
+    if (!finito(f(x0)) || !finito(df(x0))) falhar(codigoForaDeX0(f, x0), mensagemForaDeX0(f, df, x0));
+    if (avisoDer) avisar(avisos, avisoDer[0], avisoDer[1]);
+    avisarMaxIter(avisos, arrN, maxIter);
     return { f, df, x0, tol, maxIter, criterio, tipoDerivada, derivadaTexto };
   }
 
@@ -231,14 +240,14 @@
     const fx = f(x0), dfx = df(x0);
     if (!finito(fx)) {
       const causa = causaForaDoDominio(f.ast, x0);
-      if (causa && /faixa|709/.test(causa)) {
-        return `x0 = ${fmt(x0)}: exp(x) sai da faixa da precisão dupla (estoura perto de x = 709; o maior número finito é cerca de 1e308). Escolha um x0 menor.`;
+      if (causa && /estouro/.test(causa)) {
+        return `x0 = ${fmt(x0)}: estouro numérico (valor acima de ~1,8e308) ao calcular f. Escolha um x0 de módulo menor.`;
       }
       if (causa && /negativ|zero|não definid/.test(causa)) {
         return `x0 = ${fmt(x0)} está fora do domínio de f (${causa}). Escolha um x0 dentro do domínio — logaritmo e raiz quadrada, por exemplo, pedem x > 0.`;
       }
       if (causa) return `x0 = ${fmt(x0)} está fora do domínio de f (${causa}). Escolha outro x0.`;
-      return `f(x0) não é finita em x0 = ${fmt(x0)}: o valor saiu da faixa da precisão dupla (até cerca de 1e308; exp(x) estoura perto de x = 709). Escolha um x0 menor.`;
+      return `f(x0) não é finita em x0 = ${fmt(x0)}: estouro numérico (valor acima de ~1,8e308) ou ponto fora do domínio. Escolha outro x0.`;
     }
     if (!finito(dfx)) {
       const formula = df.texto ? ` (f'(x) = ${df.texto})` : '';
@@ -247,6 +256,8 @@
     return `f ou f' não é finita em x0 = ${fmt(x0)}.`;
   }
 
+  const ESTOURO = 'estouro numérico (valor acima de ~1,8e308)';
+  function codigoForaDeX0(f, x0) { if (finito(f(x0))) return 'DERIVADA_NAO_FINITA'; return /estouro/.test(causaForaDoDominio(f.ast, x0) || '') ? 'ESTOURO_NUMERICO' : 'FUNCAO_NAO_DEFINIDA'; }
   function causaForaDoDominio(no, x) {
     if (!no || typeof no !== 'object') return null;
     for (const filho of [no.arg, no.esq, no.dir]) {
@@ -257,14 +268,16 @@
     if (no.tipo === 'func') {
       const a = val(no.arg);
       if (!finito(a) || finito(val(no))) return null;
+      if (Math.abs(val(no)) === Infinity && !/^(ln|log|log10|log2|tan|sec|csc|cot)$/.test(no.nome)) return ESTOURO;
       if (/^(ln|log|log10|log2)$/.test(no.nome)) return `${no.nome} de ${a === 0 ? 'zero' : 'número negativo'}`;
       if (no.nome === 'sqrt') return 'raiz quadrada de número negativo';
-      if (no.nome === 'exp') return 'exponencial fora da faixa (exp estoura perto de 709)';
+      if (Math.abs(val(no)) === Infinity && !/^(ln|log|log10|log2)$/.test(no.nome)) return ESTOURO;
       if (/^(asin|acos)$/.test(no.nome)) return `${no.nome} fora de [−1, 1]`;
       return `${no.nome} não definida nesse ponto`;
     }
     if (no.tipo === 'bin' && finito(val(no.esq)) && finito(val(no.dir)) && !finito(val(no))) {
-      if (no.op === '/') return 'divisão por zero';
+      if (no.op === '/') return val(no.dir) === 0 ? 'divisão por zero' : ESTOURO;
+      if (Math.abs(val(no)) === Infinity && !(no.op === '^' && val(no.esq) === 0)) return ESTOURO;
       if (no.op === '^') return 'potência não definida (base negativa com expoente não inteiro, ou 0 elevado a negativo)';
     }
     return null;
@@ -312,7 +325,7 @@
       if (codigo === 'FUNCAO_NAO_DEFINIDA' && !erroDominio) {
         const x = r.raiz;
         const causa = causaForaDoDominio(v.f.ast, x);
-        if (causa && /faixa|709/.test(causa)) erroDominio = `x = ${fmt(x)}: o passo saiu da faixa da precisão dupla (${causa}). Escolha um x0 menor ou mais perto da raiz.`;
+        if (causa && /estouro/.test(causa)) erroDominio = `x = ${fmt(x)}: estouro numérico (valor acima de ~1,8e308). Escolha um x0 mais perto da raiz.`;
         else erroDominio = `x = ${fmt(x)} está fora do domínio de f (${causa || 'f não está definida'}). Tente um x0 mais perto da raiz.`;
       }
       if (codigo === 'DERIVADA_NAO_FINITA' && !erroDominio) {
@@ -512,7 +525,7 @@
         return {
           passos: r.passos, resultado: { x: null, classificacao: 'fora_da_faixa', pivoteamento: v.pivoteamento },
           codigoErro: 'FORA_DA_FAIXA',
-          erro: 'Um valor intermediário saiu da faixa da precisão dupla; x não foi calculado. Reescale A e b para uma faixa mais moderada.',
+          erro: 'Estouro numérico: um valor intermediário saiu da faixa da precisão dupla (acima de ~1,8e308); x não foi calculado. Reescale A e b para uma faixa mais moderada.',
         };
       }
       if (r.motivo === 'PIVO_ZERO_SEM_TROCA') {
@@ -542,7 +555,8 @@
       const trocas = contarTrocas(r.passos);
       let determinante = trocas.total % 2 ? -1 : 1;
       for (let i = 0; i < n; i++) determinante *= diag[i];
-      if (!Number.isFinite(determinante)) determinante = null;
+      const detForaDaFaixa = !Number.isFinite(determinante);
+      if (detForaDaFaixa) { determinante = null; avisar(avisos, 'DET_FORA_DA_FAIXA', 'det A não exibido: o produto dos pivôs saiu da faixa do double (|det| acima de ~1,8e308 ou abaixo do menor número representável). A solução x não depende disso.'); }
       const residuo = residuoAbsoluto(v.A, v.b, r.x);
       if (residuo == null) avisar(avisos, 'RESIDUO_INDISPONIVEL', 'Não foi possível calcular o resíduo nesta escala numérica.');
       const condicao = aplicarCondicao(avisos, v.A, r);
@@ -619,9 +633,10 @@
     }
     const matriz = g.matriz;
     const colunas = matriz[0].length, linhas = matriz.length;
-    if (matriz.some((l) => l.length !== colunas)) return falha('Todas as linhas devem ter o mesmo número de colunas.');
+    const dicaVirgula = !temTabOuPontoVirgula(texto) && /\d,\d/.test(String(texto)) ? ' Parece que a vírgula foi usada como decimal (ex.: "1,5"): separe as colunas com ";" ou use ponto como decimal (1.5).' : '';
+    if (matriz.some((l) => l.length !== colunas)) return falha('Todas as linhas devem ter o mesmo número de colunas.' + dicaVirgula);
     if (linhas < Metodos.N_MIN || linhas > Metodos.N_MAX) return falha(Metodos.msgTamanhoN(linhas));
-    if (colunas !== linhas && colunas !== linhas + 1) return falha(`Esperado n×n ou n×(n+1); recebi ${linhas}×${colunas}.`);
+    if (colunas !== linhas && colunas !== linhas + 1) return falha(`Esperado n×n ou n×(n+1); recebi ${linhas}×${colunas}.` + dicaVirgula);
     const aumentada = colunas === linhas + 1;
     return {
       matriz, linhas, colunas, erro: null, codigoErro: null,

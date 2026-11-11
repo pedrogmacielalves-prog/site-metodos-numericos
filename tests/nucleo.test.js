@@ -92,7 +92,7 @@ test('BUG faixa: x infinito vira erro, não resíduo NaN', () => {
   const r = E.gauss({ A: [[1e-10, 0], [0, 1e-10]], b: [1e308, 1] });
   assert.equal(r.codigoErro, 'FORA_DA_FAIXA');
   assert.equal(r.resultado.x, null);
-  assert.match(r.erro, /faixa/);
+  assert.match(r.erro, /estouro numérico/i);
   assert.ok(!r.avisos.some((a) => /NaN/.test(a)));
 });
 
@@ -143,8 +143,8 @@ test('BUG mensagens de maxIter, domínio e faixa', () => {
   assert.match(log.erro, /domínio/);
   assert.match(log.erro, /x > 0/);
   const exp = E.newton({ f: 'exp(x)', x0: 1000, tol: 1e-6, maxIter: 5 });
-  assert.match(exp.erro, /faixa/);
-  assert.match(exp.erro, /709/);
+  assert.match(exp.erro, /estouro numérico/);
+  assert.match(exp.erro, /1,8e308/);
 });
 
 test('BUG parser 1e-999, hex e gerarSistema decimal', () => {

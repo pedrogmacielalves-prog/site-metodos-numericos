@@ -115,7 +115,7 @@ test('BUG-54 derivada infinita, domínio e faixa nas iterações', () => {
   assert.match(ln.erro, /domínio|negativ/);
   const exp = E.newton({ f: 'exp(x)-3', x0: -10, tol: 1e-6, maxIter: 8 });
   assert.equal(exp.codigoErro, 'FUNCAO_NAO_DEFINIDA');
-  assert.match(exp.erro, /faixa/);
+  assert.match(exp.erro, /estouro numérico/);
 });
 
 test('BUG-55 apresentarMotor usa refX e não resolve de novo', () => {
@@ -285,7 +285,7 @@ test('checklist de status: zero, intervalo, observação, limite, derivada e dom
   assert.equal(dom.resultado.parada, 'dominio_ou_faixa');
   assert.match(dom.erro, /domínio/);
   const faixa = E.newton({ f: 'exp(x)', x0: 1000, tol: 1e-6, maxIter: 1 });
-  assert.match(faixa.erro, /faixa/);
+  assert.match(faixa.erro, /estouro numérico/);
   const der = E.newton({ f: 'sqrt(x)-1', x0: 4, tol: 1e-8, maxIter: 10 });
   assert.equal(der.resultado.parada, 'derivada');
   assert.match(der.erro, /não pode ser calculado/);

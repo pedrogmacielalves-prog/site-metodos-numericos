@@ -21,7 +21,7 @@
     if (res.erro && id === 'newton' && res.codigoErro === 'OSCILACAO' && window.Visual.cicloNoLimite(res.passos)) {
       var u = res.passos[res.passos.length - 1];
       h += toast('aviso', 'Parou no limite de precisão do computador (precisão dupla, ~16 dígitos): os iterados pararam de mudar em precisão dupla (xₖ alterna entre dois números vizinhos), então o ' + ((res.criterio || 'relativo') === 'relativo' ? 'ε' : 'tol') + ' pedido não pôde ser alcançado. Raiz ≈ ' + window.Visual.oito(u.xNovo) + ' após ' + res.passos.length + ' iterações; este é o resultado mais preciso possível em precisão dupla.');
-    } else if (res.erro) h += toast(res.codigoErro === 'NAO_CONVERGIU' ? 'aviso' : 'erro', res.erro);
+    } else if (res.erro) h += toast(res.codigoErro === 'NAO_CONVERGIU' || res.codigoErro === 'LIMITE_PRECISAO' ? 'aviso' : 'erro', res.erro);
     else if (res.resultado) h += toast('sucesso', resumo(res), (id === 'gauss' ? tabelaSolucao(res) : '') + (id === 'bisseccao' ? (res.avisos || []).filter(function (a, i) { return (res.codigosAviso || [])[i] === 'MODULO_CRESCEU'; }).map(function (a) { return '<p class="toast__texto"><strong>' + esc(a) + '</strong></p>'; }).join('') : '') + (nota(id, res) ? '<p class="nota-resultado">' + nota(id, res) + '</p>' : ''));
     var poloB = id === 'bisseccao' && (res.codigosAviso || []).indexOf('MODULO_CRESCEU') >= 0;
     if (poloB) h = h.replace('<span class="toast__icone" aria-hidden="true">✓</span>', '<span class="toast__icone" aria-hidden="true"></span>');
@@ -399,16 +399,21 @@
     formG.n.value = nAtual;
     $('#confirma-n-cancelar').focus();
   }
+  /* aviso visível ao lado do campo n quando o valor digitado foi ajustado (ex.: 801 → 800) */
+  function avisarN(v, usado) { var el = $('#aviso-n'); if (!el) { el = document.createElement('p'); el.id = 'aviso-n'; el.className = 'campo__ajuda dica-precisao'; el.setAttribute('role', 'status'); $('#ajuda-n').parentNode.insertBefore(el, $('#ajuda-n').nextSibling); }
+    var num = Number(String(v).trim().replace(',', '.')), txt = !isFinite(num) ? 'n precisa ser um número inteiro' : num > GE.MAX ? 'n = ' + String(v).trim() + ' passa do limite prático de ' + GE.MAX : num < GE.MIN ? 'n = ' + String(v).trim() + ' é menor que o mínimo ' + GE.MIN : 'n precisa ser inteiro (' + String(v).trim() + ')';
+    el.innerHTML = '<span class="badge badge--aviso">n ajustado</span> ' + esc(txt + '; usei n = ' + usado + '.'); el.hidden = false; }
   function mudarN(v) {
+    var av = $('#aviso-n'); if (av) av.hidden = true;
     if (reducaoPendente != null) { formG.n.value = nAtual; return; }
     var r = GE.limitarN(v);
     if (r.n === nAtual) {
-      if (r.ajustado) $('#msg-gauss').innerHTML = toast('aviso', 'n deve ser inteiro entre ' + GE.MIN + ' e ' + GE.MAX + '; usei n = ' + r.n + '.');
+      if (r.ajustado) avisarN(v, r.n);
       sincronizarN();
       return;
     }
     if (r.n < nAtual && reducaoEscondeDado(r.n)) { pedirReducao(r.n); return; }
-    if (r.ajustado) $('#msg-gauss').innerHTML = toast('aviso', 'n deve ser inteiro entre ' + GE.MIN + ' e ' + GE.MAX + '; usei n = ' + r.n + '.');
+    if (r.ajustado) avisarN(v, r.n);
     aplicarN(r.n);
   }
   formG.n.addEventListener('change', function () { mudarN(formG.n.value); });
@@ -436,6 +441,8 @@
   $('#limpar-gauss').addEventListener('click', function () { fecharConfirmacaoN(); avisoColar.hidden = true; pendente = null; origem = ''; zerarAcervo(); montarEntrada(nAtual, null); $('#msg-gauss').innerHTML = ''; abas.gauss.marcarDesatualizado(true); var p = $(INPUTS); (p || $('#colar-gauss')).focus(); });
   /* Colar A e b (separados ou aumentada): valida contra o n escolhido; nunca muda n sozinho */
   var painelColar = $('#painel-colar'), avisoColar = $('#aviso-colar'), pendente = null;
+  /* autoplay do Gauss não rouba o foco de quem está colando: pausa ao focar/digitar no painel Colar */
+  ['focusin', 'input'].forEach(function (ev) { painelColar.addEventListener(ev, function () { var pl = abas.gauss.player; if (pl && pl.timer) pl.pausar(); }); });
   function modoColar() { return (formG.querySelector('[name=modo-colar]:checked') || {}).value || 'separado'; }
   function areaAtiva() { return modoColar() === 'aumentada' ? $('#texto-colar') : $('#texto-colar-a'); }
   function limparInvalidas() { ['#texto-colar', '#texto-colar-a', '#texto-colar-b'].forEach(function (s) { var t = $(s); t.removeAttribute('aria-invalid'); t.removeAttribute('aria-describedby'); }); }

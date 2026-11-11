@@ -27,6 +27,8 @@
       // @etapa:pontoMedio — estável nos dois sinais (b−a estoura se a e b são opostos e enormes)
       const sinaisOpostos = (a < 0) !== (b < 0);
       c = sinaisOpostos ? a / 2 + b / 2 : a + (b - a) / 2;
+      // Limite da precisão dupla: o ponto médio não se separa mais de a/b ou repete o anterior.
+      if (passos.length && (c === a || c === b || c === cAnt)) return fim(true, 'LIMITE_PRECISAO');
       const fc = f(c);
 
       // A raiz está a no máximo meio intervalo de c: esse é o erro.
