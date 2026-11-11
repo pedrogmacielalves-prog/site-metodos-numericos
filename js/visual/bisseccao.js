@@ -26,12 +26,14 @@
     return {
       carregar: function (res, f) {
         var campo = res.criterio === 'relativo' ? V.criterio.campoErro : 'erro';
-        passos = res.passos; atual = null; convergiu = !!(res.resultado && res.resultado.convergiu);
+        passos = res.passos; atual = null;
+        var zero = !!(res.resultado && res.resultado.zeroObservado);
+        convergiu = zero;
         var p0 = passos[0] || {};
         grafico.restaurar(true);
         grafico.definir(f, p0.a, p0.b, passos.length ? [p0.fa, p0.fb] : []);
         tabela.preencher(passos.map(function (p) { return [p.k, V.oito(p.a), V.oito(p.b), V.oito(p.c), V.oito(p.fa), V.oito(p.fb), V.oito(p.fc), (p[campo] == null ? '—' : V.oito(p[campo])) + (p.criterioFallback ? V.FALLBACK_HTML : '')]; }), passos.map(function (p) { return [null, p.a, p.b, p.c, p.fa, p.fb, p.fc, p[campo]]; }));
-        tabela.marcarRaiz(convergiu);
+        tabela.marcarRaiz(zero ? 'zero' : false);
         var th = el.tbody.closest('table').querySelector('.th-erro'); if (th) th.textContent = V.thErro('bisseccao', res.criterio === 'relativo');
         if (!passos.length) { grafico.desenhar(null); el.descricao.textContent = ''; }
       },

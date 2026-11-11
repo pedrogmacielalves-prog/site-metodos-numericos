@@ -59,7 +59,7 @@
        Newton avaliaDerivada/passoNewton/criterioParada. Passos intermediários alternam entre eles; o último mostra o critério. */
     bisseccao: function (p) {
       if (p.ultimo || p.etapa === 'criterioParada') return CRIT_LINHA(p);
-      var seq = [[/@etapa:pontoMedio/, /c\s*=\s*\(\s*a\s*\+\s*b\s*\)\s*\/\s*2/], [/@etapa:testeSinal/, /fa\s*\*\s*fc\s*<\s*0/], [/@etapa:atualizaIntervalo/, /manter\s*===?\s*'esquerda'/]];
+      var seq = [[/@etapa:pontoMedio/, /a\s*\+\s*\(\s*b\s*-\s*a\s*\)\s*\/\s*2/, /c\s*=\s*\(\s*a\s*\+\s*b\s*\)\s*\/\s*2/], [/@etapa:testeSinal/, /sinais opostos|fa\s*<\s*0|fa\s*\*\s*fc\s*<\s*0/], [/@etapa:atualizaIntervalo/, /manter\s*===?\s*'esquerda'/]];
       return seq[((p.k || 1) - 1) % 3]; },
     newton: function (p) {
       if (p.ultimo || p.etapa === 'criterioParada') return CRIT_LINHA(p);

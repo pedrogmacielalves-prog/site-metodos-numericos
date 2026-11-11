@@ -29,7 +29,8 @@
     if (M.some(function (r) { return r.length !== c; })) return { ok: false, codigoErro: 'LINHAS_DESIGUAIS', linhas: k, erro: 'As linhas têm quantidades diferentes de valores; o formato esperado é n linhas com n + 1 valores (A | b).' };
     var r = { linhas: k, colunas: c, M: M };
     if (c !== k + 1) { r.ok = false; r.codigoErro = 'FORMATO'; r.erro = 'O texto colado é ' + k + '×' + c + ' (n linhas com n valores de A + 1 de b); o formato esperado é n×(n+1) (n linhas, n coeficientes + b).'; return r; }
-    if (k < 2 || k > 100) { r.ok = false; r.codigoErro = 'TAMANHO'; r.erro = 'O texto colado é ' + k + '×' + c + '; n deve estar entre 2 e 100.'; return r; }
+    var nMax = (g.Metodos && g.Metodos.N_MAX) || 100, nMin = (g.Metodos && g.Metodos.N_MIN) || 2;
+    if (k < nMin || k > nMax) { r.ok = false; r.codigoErro = 'TAMANHO'; r.erro = 'O texto colado é ' + k + '×' + c + '; ' + (g.Metodos && g.Metodos.msgTamanhoN ? g.Metodos.msgTamanhoN(k) : ('n deve estar entre ' + nMin + ' e ' + nMax + '.')); return r; }
     r.ok = true; r.n = k; r.A = M.map(function (l) { return l.slice(0, k); }); r.b = M.map(function (l) { return l[k]; });
     return r;
   };

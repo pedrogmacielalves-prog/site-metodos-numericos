@@ -39,16 +39,49 @@
      Não há nível de 3 ou 2 algarismos: as duas grades (entrada e matriz) ficam dentro de .rolagem-x, então quando nem 4 alg. xs cabe a grade passa a rolar por dentro.
      Retorna true se coube; false = quem chamou deve trocar para o layout com rolagem (larguras mínimas) e chamar de novo.
      O valor completo fica em data-valor/title (e no foco, nas entradas). */
-  var NIVEIS = [[4, 0], [4, 1]];
+  var cacheCaber = { chave: '', nivel: 0, coube: true };
+  function medirTexto(c, t) {
+    var cs = getComputedStyle(c);
+    ctxMedida = ctxMedida || document.createElement('canvas').getContext('2d');
+    ctxMedida.font = cs.fontStyle + ' ' + cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+    var ls = parseFloat(cs.letterSpacing) || 0;
+    V._medidas = (V._medidas || 0) + 1;
+    return ctxMedida.measureText(t).width + ls * t.length;
+  }
+  /* Uma medida do texto mais largo por lote; repete só se a fonte, a largura ou o texto mudam. */
   V.caberCelulas = function (cels, ler, escrever, grade) {
-    cels = Array.prototype.slice.call(cels); var nivel = 0, coube = true;
-    cels.forEach(function (c) { var v = ler(c); if (v == null || !isFinite(v)) return;
-      for (var n = nivel; n < NIVEIS.length; n++) { c.classList.toggle('cel--xs', !!NIVEIS[n][1]); var ok = cabe(c, V.sig(v, 4)); if (ok === null) return; if (ok) break; }
-      if (n >= NIVEIS.length) { coube = false; n = NIVEIS.length - 1; } nivel = n; });
-    cels.forEach(function (c) { c.classList.toggle('cel--xs', !!NIVEIS[nivel][1]); var v = ler(c); if (v != null && isFinite(v)) escrever(c, V.sig(v, 4)); });
-    if (grade) { grade.dataset.nivel = nivel; grade.classList.toggle('grade--xs', !!NIVEIS[nivel][1]); }
+    cels = Array.prototype.slice.call(cels);
+    var maior = '', amostra = null;
+    cels.forEach(function (c) {
+      var v = ler(c); if (v == null || !isFinite(v)) return;
+      var t = V.sig(v, 4); if (t.length >= maior.length) maior = t;
+      if (!amostra && c.clientWidth > 0) amostra = c;
+    });
+    var nivel = 0, coube = true;
+    if (amostra && maior) {
+      var cs = getComputedStyle(amostra);
+      var util = amostra.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+      var chave = cs.fontSize + '/' + cs.fontFamily + '/' + util + '/' + maior;
+      if (chave === cacheCaber.chave) { nivel = cacheCaber.nivel; coube = cacheCaber.coube; }
+      else if (util > 0) {
+        var w = medirTexto(amostra, maior);
+        if (w > util - 1) {
+          amostra.classList.add('cel--xs');
+          var w2 = medirTexto(amostra, maior);
+          amostra.classList.remove('cel--xs');
+          if (w2 <= util - 1) nivel = 1; else { nivel = 1; coube = false; }
+        }
+        cacheCaber = { chave: chave, nivel: nivel, coube: coube };
+      }
+    }
+    cels.forEach(function (c) {
+      c.classList.toggle('cel--xs', nivel === 1);
+      var v = ler(c); if (v != null && isFinite(v)) escrever(c, V.sig(v, 4));
+    });
+    if (grade) { grade.dataset.nivel = String(nivel); grade.classList.toggle('grade--xs', nivel === 1); }
     return coube;
   };
+  V._limparCacheCaber = function () { cacheCaber = { chave: '', nivel: 0, coube: true }; };
 
 
 
@@ -58,9 +91,10 @@
     if (v === 0 || (a >= 1e-4 && a < 1e8)) { s = v.toFixed(8); if (/^-0\.0+$/.test(s)) s = s.slice(1); }
     else { var p = v.toExponential(8).split('e'), e = +p[1]; s = p[0] + 'e' + (e < 0 ? '-' : '+') + (Math.abs(e) < 10 ? '0' : '') + Math.abs(e); }
     return s.replace('.', ',').replace(/-/g, '−'); };
-  V.fmtSolucao = function (x, escala, casas) {
-    var y = x.map(function (v) { return V.limpar(v, escala); }), ok = y.filter(function (v) { return v != null && isFinite(v); });
-    return y.map(function (v) { if (v == null) return '?'; if (!isFinite(v)) return '—'; return V.oito(v); });
+  V.escalaVetor = function (x) { var m = 0; (x || []).forEach(function (v) { if (v != null && isFinite(v) && Math.abs(v) > m) m = Math.abs(v); }); return m; };
+  /* Cada componente na própria escala: x=[1, 1e20] não pode virar [0, 1e20]. */
+  V.fmtSolucao = function (x) {
+    return (x || []).map(function (v) { if (v == null) return '?'; if (!isFinite(v)) return '—'; return V.oito(v); });
   };
   /* BUG-16: texto de exibição em PT-BR — vírgula decimal e sinal de menos tipográfico (não mexe no código da gaveta). */
   /* números por extenso (≥ 1e6 ou 0 < |v| < 1e-4) viram notação da matriz; não toca em 1e-17, x1, a11, L10 etc. */
@@ -84,7 +118,7 @@
   V.lerp = function (a, b, t) { return a + (b - a) * t; };
   /* Tabela sincronizada: linhas = array de arrays de HTML */
   /* indicador de criterioFallback (|x| ≈ 0 → o núcleo usou |Δx|): ícone + texto acessível */
-  V.FALLBACK_HTML = ' <span class="fallback" title="x perto de zero: usou o erro absoluto |Δx|"><span aria-hidden="true">⚠ |Δx|</span><span class="sr-only">aviso: x perto de zero, usou erro absoluto</span></span>';
+  V.FALLBACK_HTML = ' <span class="fallback" title="Erro relativo indefinido (xₖ ≈ 0): o valor é |xₖ − xₖ₋₁|, comparado com ε"><span aria-hidden="true">⚠ |Δx|</span><span class="sr-only">erro relativo indefinido; valor é a diferença absoluta entre iterados</span></span>';
   V.Tabela = function (tbody, aoClicar) {
     this.tbody = tbody;
     tbody.addEventListener('click', function (e) { var tr = e.target.closest('tr'); if (tr && tr.dataset.i) aoClicar(+tr.dataset.i); });
@@ -100,8 +134,8 @@
   V.sig6 = function (v) { if (v == null || !isFinite(v)) return '—'; var x = Number(v.toPrecision(6)), a = Math.abs(x);
     var s = x === 0 ? '0' : (a >= 1e-4 && a < 1e7 ? String(x) : x.toExponential().replace('e+', 'e'));
     return s.replace('.', ',').replace(/-/g, '−'); };
-  // Última linha = a raiz (destaque âmbar), só quando o método convergiu.
-  V.Tabela.prototype.marcarRaiz = function (sim) { var u = this.tbody.lastElementChild; [].forEach.call(this.tbody.children, function (tr) { tr.classList.remove('linha-raiz'); }); if (sim && u) { u.classList.add('linha-raiz'); u.setAttribute('aria-label', 'Linha ' + u.firstElementChild.textContent + ': aproximação da raiz'); } };
+  // Destaque da última linha. 'zero' = observação em precisão dupla; true = parada por tolerância; false = sem destaque.
+  V.Tabela.prototype.marcarRaiz = function (sim) { var u = this.tbody.lastElementChild; [].forEach.call(this.tbody.children, function (tr) { tr.classList.remove('linha-raiz'); }); if (sim && u) { u.classList.add('linha-raiz'); u.setAttribute('aria-label', 'Linha ' + u.firstElementChild.textContent + ': ' + (sim === 'zero' ? 'zero observado em precisão dupla, não é certificação matemática' : 'aproximação da parada por tolerância')); } };
   /* valores (opcional): números crus por célula → title/aria-label com o valor completo (BUG-35) */
   V.Tabela.prototype.preencher = function (linhas, valores) {
     this.tbody.innerHTML = linhas.map(function (l, i) { return '<tr data-i="' + i + '" tabindex="0">' + l.map(function (c, j) { var v = valores && valores[i] ? valores[i][j] : null, t = typeof v === 'number' && isFinite(v) ? V.completo(v) : ''; return '<td' + (t ? ' title="' + t + '" aria-label="' + t + '"' : '') + '>' + c + '</td>'; }).join('') + '</tr>'; }).join('');

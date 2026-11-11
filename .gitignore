@@ -7,7 +7,6 @@ b32_res.json
 
 # Material interno da equipe (não publicado)
 docs/
-tests/
 package.json
 package-lock.json
 design/*

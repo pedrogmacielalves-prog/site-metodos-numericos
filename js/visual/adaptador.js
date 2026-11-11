@@ -28,7 +28,10 @@
     gauss: function (p, i, f, ant) {
       var o = base(p), t = String(pega(p, ['tipo', 'acao', 'operacao'], '')).toLowerCase();
       o.tipo = /coluna|column/.test(t) ? 'coluna' : /troca|swap/.test(t) ? 'troca' : /pivo|pivot/.test(t) ? 'pivo' : /elimin/.test(t) ? 'eliminacao' : /subst|regress/.test(t) ? 'substituicao' : /fim|final|solu/.test(t) ? 'fim' : 'inicio';
-      o.matriz = pega(p, ['matriz', 'A', 'matrizAumentada', 'estado'], ant && ant.matriz);
+      o._hist = p._hist || null; o._i = p._i;
+      if (p.matriz != null) o.matriz = p.matriz;
+      else if (o._hist && g.Metodos && g.Metodos.matrizDoPasso) o.matriz = null;
+      else o.matriz = pega(p, ['matriz', 'A', 'matrizAumentada', 'estado'], ant && ant.matriz);
       o.fase = pega(p, ['fase'], o.tipo === 'substituicao' || o.tipo === 'fim' ? 'substituicao' : 'eliminacao');
       o.linhas = pega(p, ['linhas', 'trocar', 'troca']); o.pivo = pega(p, ['pivo', 'pivô']);
       if (typeof o.pivo === 'number') o.pivo = { linha: o.pivo, coluna: o.pivo };

@@ -104,13 +104,22 @@
   <section class="painel metodo-gauss" id="painel-gauss" role="tabpanel" aria-labelledby="aba-gauss" hidden>
     <div class="layout">
       <form class="card card--metodo metodo-gauss form-metodo" id="form-gauss" novalidate>
-        <div class="campo campo-n"><label class="campo__rotulo" for="n-gauss">Ordem n do sistema (2 a 100)</label>
+        <div class="campo campo-n"><label class="campo__rotulo" for="n-gauss">Tamanho do sistema n×n</label>
           <div class="seletor-n">
             <button type="button" class="btn btn--secundario btn--icone" id="n-menos" aria-label="Diminuir n" aria-controls="n-gauss">−</button>
-            <input class="input input--num" id="n-gauss" type="number" name="n" min="2" max="100" step="1" inputmode="numeric" value="3">
+            <input class="input input--num" id="n-gauss" type="number" name="n" min="2" step="1" inputmode="numeric" value="3" aria-describedby="ajuda-n dimensao-gauss">
             <button type="button" class="btn btn--secundario btn--icone" id="n-mais" aria-label="Aumentar n" aria-controls="n-gauss">+</button>
           </div>
-          <p class="campo__ajuda">Escolha n e depois preencha, cole ou gere a matriz A e o vetor b. Para n &gt; 10 não há grade de digitação (use Colar, Aleatório ou Exemplo) e a animação é por coluna.</p>
+          <p class="campo__ajuda" id="ajuda-n">A é uma matriz n×n e b é um vetor n×1.</p>
+          <div id="confirma-n" class="confirma-n" role="alertdialog" aria-modal="true" aria-labelledby="confirma-n-titulo" hidden>
+            <p id="confirma-n-titulo" class="toast__titulo">Reduzir n esconde coeficientes</p>
+            <p id="confirma-n-texto"></p>
+            <div class="acoes">
+              <button type="button" class="btn btn--secundario" id="confirma-n-cancelar">Cancelar</button>
+              <button type="button" class="btn btn--primario" id="confirma-n-ok">Reduzir mesmo assim</button>
+            </div>
+          </div>
+          <p class="dimensao-sistema" id="dimensao-gauss">Sistema 3×3 · A: 3×3, b: 3×1</p>
         </div>
         <fieldset class="campo campo-pivo campo-seg"><legend class="campo__rotulo">Pivoteamento</legend><div class="segmentado" id="pivoteamento-gauss" role="radiogroup" aria-describedby="ajuda-pivo"><input type="radio" id="piv-auto" name="pivoteamento" value="automatico" checked><label for="piv-auto">Automático</label><input type="radio" id="piv-sempre" name="pivoteamento" value="sempre"><label for="piv-sempre">Sempre</label><input type="radio" id="piv-nunca" name="pivoteamento" value="nunca"><label for="piv-nunca">Nunca</label></div><p class="campo__ajuda" id="ajuda-pivo"></p></fieldset>
         <h2>Sistema</h2>
@@ -137,9 +146,6 @@
           <div class="acoes"><button class="btn btn--primario" type="button" id="carregar-colar">Carregar</button><button class="btn btn--secundario" type="button" id="cancelar-colar">Cancelar</button></div>
           <div id="aviso-colar" class="aviso-colar" role="alert" hidden></div>
         </div>
-        <div class="acoes">
-          <button class="btn btn--primario" type="submit">Calcular</button>
-        </div>
         <div class="mensagens" id="msg-gauss" role="status" aria-live="polite"></div>
       </form>
       <div class="coluna">
@@ -149,16 +155,23 @@
         <p class="entrada-titulo entrada-titulo--fora" id="titulo-a">Matriz A (3×3)</p>
         <div class="rolagem-x" id="rolagem-entrada">
           <div class="entrada-ab">
-            <div class="entrada-bloco"><p class="entrada-titulo entrada-titulo--espaco" aria-hidden="true">&nbsp;</p>
-              <div class="entrada-matriz" id="entrada-matriz" role="group" aria-labelledby="titulo-a"></div></div>
-            <div class="entrada-bloco entrada-bloco--b"><p class="entrada-titulo" id="titulo-b">Vetor b</p>
-              <div class="entrada-matriz entrada-b" id="entrada-b" role="group" aria-labelledby="titulo-b"></div></div>
+            <fieldset class="entrada-bloco"><legend class="entrada-titulo entrada-titulo--espaco" id="legenda-a">A (n×n)</legend>
+              <div class="entrada-matriz" id="entrada-matriz" role="grid" aria-labelledby="titulo-a"></div></fieldset>
+            <fieldset class="entrada-bloco entrada-bloco--b"><legend class="entrada-titulo" id="titulo-b">Vetor b (n×1)</legend>
+              <div class="entrada-matriz entrada-b" id="entrada-b" role="grid" aria-labelledby="titulo-b"></div></fieldset>
           </div>
         </div>
-        <p class="campo__ajuda dica-rolagem" id="dica-entrada" hidden>↔ Role horizontalmente para ver todas as colunas.</p>
+        <p class="campo__ajuda dica-rolagem" id="dica-entrada" hidden>↔ Role horizontalmente para ver todas as colunas. O foco não fica sob a coluna b.</p>
+        <div id="resumo-erros" class="resumo-erros" role="alert" hidden></div>
+        <div class="acoes acoes-calcular"><button class="btn btn--primario" type="submit" form="form-gauss" id="calcular-grade">Calcular</button></div>
         </div>
         <div class="card">
           <div class="cabeca-cartao"><h2>Matriz</h2><div class="acoes-metodo"><button type="button" class="btn btn--secundario" id="codigo-gauss" data-modo="codigo" aria-haspopup="dialog" aria-controls="gaveta-codigo" aria-expanded="false"><svg class="icone" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m6.5 6-4 4 4 4"/><path d="m13.5 6 4 4-4 4"/><path d="m11.2 3.5-2.4 13"/></svg> Ver código</button><button type="button" class="btn btn--secundario btn--com-selo" id="avisos-gauss" data-modo="avisos" aria-haspopup="dialog" aria-controls="gaveta-codigo" aria-expanded="false" aria-label="Avisos"><svg class="icone" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M8.6 3.2 1.9 15a1.6 1.6 0 0 0 1.4 2.4h13.4a1.6 1.6 0 0 0 1.4-2.4L11.4 3.2a1.6 1.6 0 0 0-2.8 0Z"/><path d="M10 8v3.5"/><path d="M10 14.3h.01"/></svg> Avisos</button></div></div>
+          <div id="progresso-gauss" class="progresso-tarefa" hidden>
+            <p id="progresso-gauss-texto" role="status">Eliminando…</p>
+            <progress id="progresso-gauss-barra" max="100" value="0" aria-describedby="progresso-gauss-texto"></progress>
+            <button type="button" class="btn btn--secundario" id="cancelar-gauss">Cancelar</button>
+          </div>
           <p class="pivo-gauss" id="pivo-gauss" aria-live="polite"></p>
           <div id="bloco-matriz">
             <div class="rolagem-x" id="rolagem-matriz"><div class="matriz-vis" id="matriz-gauss" aria-live="off"></div></div>
@@ -237,6 +250,7 @@
 <script src="js/visual/newton.js"></script>
 <script src="js/visual/gauss-pivo.js"></script>
 <script src="js/visual/gauss.js"></script>
+<script src="js/visual/gauss-tarefa.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

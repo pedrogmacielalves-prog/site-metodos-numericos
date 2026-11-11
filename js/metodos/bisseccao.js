@@ -20,21 +20,25 @@
 
     // Pré-condição: se f(a) e f(b) têm o mesmo sinal, não há
     // garantia de raiz em [a, b] e o método não se aplica.
-    if (fa * fb > 0) return fim(false, 'SEM_TROCA_DE_SINAL');
+    // Compara os sinais sem multiplicar: 1e−200 · 1e−200 vira 0.
+    if (fa !== 0 && fb !== 0 && (fa < 0) === (fb < 0)) return fim(false, 'SEM_TROCA_DE_SINAL');
 
     for (let k = 1; k <= maxIter; k++) {
-      // @etapa:pontoMedio — divide o intervalo ao meio
-      c = (a + b) / 2;
+      // @etapa:pontoMedio — estável nos dois sinais (b−a estoura se a e b são opostos e enormes)
+      const sinaisOpostos = (a < 0) !== (b < 0);
+      c = sinaisOpostos ? a / 2 + b / 2 : a + (b - a) / 2;
+      // Limite da precisão dupla: o ponto médio não se separa mais de a/b ou repete o anterior.
+      if (passos.length && (c === a || c === b || c === cAnt)) return fim(true, 'LIMITE_PRECISAO');
       const fc = f(c);
 
       // A raiz está a no máximo meio intervalo de c: esse é o erro.
-      const erro = (b - a) / 2;
+      const erro = sinaisOpostos ? Math.abs(a) / 2 + Math.abs(b) / 2 : Math.abs(b - a) / 2;
       const erroRelativo = Metodos.erroRelativo(erro, c);
 
-      // @etapa:testeSinal — a raiz fica na metade com troca de sinal
+      // @etapa:testeSinal — sinais opostos, sem multiplicar f(a)·f(c)
       let manter;
       if (fc === 0) manter = 'raiz';
-      else if (fa * fc < 0) manter = 'esquerda';
+      else if (fa !== 0 && fc !== 0 && (fa < 0) !== (fc < 0)) manter = 'esquerda';
       else manter = 'direita';
       // @etapa:criterioParada — raiz exata ou erro menor que tol
       const crit = Metodos.testeParada(criterio, c, cAnt, erro, tol);
@@ -48,7 +52,9 @@
         etapa: parou ? 'criterioParada' : 'pontoMedio', etapas,
         descricao: Metodos.textos.bisseccao(manter, parou, crit),
       });
-      if (fc === 0) return fim(true, 'RAIZ_EXATA');
+      // f(c) = 0 na aritmética de 64 bits. É parada por observação, não prova de raiz.
+      if (fc === 0) return fim(true, 'ZERO_PRECISAO_DUPLA');
+      // Erro abaixo da tolerância: c é a raiz aproximada.
       if (crit.parou) return fim(true, 'TOLERANCIA');
       cAnt = c;
       // @etapa:atualizaIntervalo — fica a metade que contém a raiz

@@ -6,13 +6,15 @@
 (function (g) {
   'use strict';
   var V = g.Visual = g.Visual || {};
-  var MIN = 2, MAX = 100, MAX_GRADE = 10;
+  var MIN = 2, MAX_GRADE = 10;
+  function maxN() { return (g.Metodos && g.Metodos.N_MAX) || 100; }
   function inteiro(rnd, a, b) { return a + Math.floor(rnd() * (b - a + 1)); }
   V.gaussEntrada = {
-    MIN: MIN, MAX: MAX, MAX_GRADE: MAX_GRADE,
+    MIN: MIN, MAX_GRADE: MAX_GRADE,
+    get MAX() { return maxN(); },
     limitarN: function (v) {
       var n = Math.round(+v); if (!isFinite(n)) return { n: 3, ajustado: true };
-      var m = Math.min(MAX, Math.max(MIN, n)); return { n: m, ajustado: m !== +v };
+      var m = Math.min(maxN(), Math.max(MIN, n)); return { n: m, ajustado: m !== +v };
     },
     redimensionar: function (M, n) {
       M = M || []; var nAnt = M.length, R = [];
@@ -21,6 +23,26 @@
         for (var j = 0; j < n; j++) nova.push(i < nAnt && j < nAnt && lin[j] != null ? lin[j] : '');
         nova.push(i < nAnt && lin[nAnt] != null ? lin[nAnt] : ''); // b continua na última coluna
         R.push(nova);
+      }
+      return R;
+    },
+    /* Guarda A e b à parte: diminuir n não apaga coeficientes; aumentar n restaura. */
+    gravar: function (estado, matriz, n) {
+      estado.A = estado.A || []; estado.B = estado.B || [];
+      for (var i = 0; i < n; i++) {
+        estado.A[i] = estado.A[i] || [];
+        for (var j = 0; j < n; j++) estado.A[i][j] = matriz[i][j];
+        estado.B[i] = matriz[i][n];
+      }
+      return estado;
+    },
+    recortar: function (estado, n) {
+      var R = [], i, j, lin;
+      for (i = 0; i < n; i++) {
+        lin = [];
+        for (j = 0; j < n; j++) lin.push(estado.A[i] && estado.A[i][j] != null ? estado.A[i][j] : '');
+        lin.push(estado.B[i] != null ? estado.B[i] : '');
+        R.push(lin);
       }
       return R;
     },
