@@ -195,7 +195,7 @@
     const F = Metodos.fmtBR;
     if (crit.criterio === 'absoluto') return simbolo === 'c' ? `(b − a)/2 = ${F(crit.erro)}` : `|Δx| = ${F(crit.erro)}`;
     if (crit.erro == null) return 'erro relativo: — na 1ª iteração, sem ponto médio anterior';
-    if (crit.fallback) return `|${simbolo}| ≈ 0: usei o erro absoluto |Δ${simbolo}| = ${F(crit.erro)}`;
+    if (crit.fallback) return `erro relativo indefinido (${simbolo}ₖ ≈ 0); usei |${simbolo}ₖ − ${simbolo}ₖ₋₁| = ${F(crit.erro)}`;
     return `erro relativo |Δ${simbolo}|/|${simbolo}| = ${F(crit.erro)}`;
   };
 
@@ -340,7 +340,7 @@
         const base = !crit || crit.criterio === 'absoluto'
           ? '(b − a)/2 < tolerância.'
           : `${Metodos.textos_criterio(crit, 'c')} < ε.`;
-        return `${base} Parada só pelo intervalo: aproxima uma raiz somente se f for contínua.`;
+        return `Critério de parada atingido: ${base} c é a raiz aproximada.`;
       }
       const lado = manter === 'esquerda'
         ? 'sinais opostos em [a, c]; o próximo intervalo é [a, c]'

@@ -119,7 +119,7 @@ test('BUG bissecção: sinal sem produto, ponto médio estável', () => {
 test('BUG Newton: sem raiz falsa e derivada relativa', () => {
   const sem = E.newton({ f: 'x^2+1', x0: 100, tol: 1e-8, maxIter: 6 });
   assert.equal(sem.codigoErro, 'NAO_CONVERGIU');
-  assert.match(sem.erro, /não é raiz/);
+  assert.match(sem.erro, /≠ 0 e o critério de parada não foi atingido/);
   assert.ok(!sem.avisos.some((a) => /raiz múltipla/.test(a)));
   const lin = E.newton({ f: '1e-20*(x-1)', x0: 0, tol: 1e-12, maxIter: 5 });
   assert.equal(lin.codigoErro, null);
@@ -170,7 +170,7 @@ test('estimativa de condição na ordem de grandeza', () => {
   const r = E.gauss({ A, b, pivoteamento: 'sempre' });
   const c = r.resultado.condicao;
   assert.ok(c > 1e12 && c < 1e15, 'cond Hilbert 10 ≈ 1e13, veio ' + c);
-  assert.ok(r.avisos.some((a) => /estimativa de cond₁/.test(a)));
+  assert.ok(r.avisos.some((a) => /cond₁ estimada/.test(a)));
   const id = E.gauss({ A: [[1, 0], [0, 1]], b: [3, 4] });
   assert.ok(id.resultado.condicao < 5);
   const conhecido = E.gauss({ A: [[1, 2], [3, 4]], b: [5, 6] });

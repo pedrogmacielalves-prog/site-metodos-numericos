@@ -52,7 +52,7 @@
     const p = passos[passos.length - 1];
     if (!p || !p.criterioFallback || motivo !== 'TOLERANCIA') return;
     const x = p.c != null ? p.c : p.xNovo, F = Metodos.fmtBR;
-    avisar(avisos, 'CRITERIO_RELATIVO_PERTO_DE_ZERO', `Critério relativo perto de zero: na iteração ${p.c != null ? p.k : p.k + 1}, |x| = ${F(Math.abs(x))} < ${F(Metodos.LIMIAR_ZERO_RELATIVO)}, e dividir por ele não faz sentido; usei o erro absoluto |Δx| = ${F(p.erroCriterio)} comparado com ε = ${F(tol)}.`);
+    avisar(avisos, 'CRITERIO_RELATIVO_PERTO_DE_ZERO', (p.c != null ? `Erro relativo indefinido (c${p.k} ≈ 0); a parada usou |c${p.k} − c${p.k - 1}| = ${F(p.erroCriterio)} < ε = ${F(tol)}.` : `Erro relativo indefinido (x${p.k + 1} ≈ 0); a parada usou |x${p.k + 1} − x${p.k}| = ${F(p.erroCriterio)} < ε = ${F(tol)}.`));
   }
   const finito = Number.isFinite;
 
@@ -131,20 +131,16 @@
       }
       const zeroObservado = r.motivo === 'ZERO_PRECISAO_DUPLA';
       const resultado = camposDeParada(r.motivo, {
-        raiz: r.raiz, fRaiz: v.f(r.raiz), iteracoes: r.passos.length, convergiu: zeroObservado,
+        raiz: r.raiz, fRaiz: v.f(r.raiz), iteracoes: r.passos.length, convergiu: zeroObservado || r.motivo === 'TOLERANCIA',
         iteracoesEstimadas, criterio: v.criterio, tol: v.tol,
       });
       if (zeroObservado) {
         avisar(avisos, 'ZERO_PRECISAO_DUPLA', `Zero observado em precisão dupla em x = ${fmt(r.raiz)}: f vale 0 nessa aritmética. É a parada do método, não uma certificação matemática de raiz.`);
         return { passos: r.passos, resultado, erro: null, codigoErro: null };
       }
-      if (r.motivo === 'PARADA_INTERVALO') {
-        const c = r.passos[r.passos.length - 1];
-        if (pareceCrescimentoDeModulo(r.passos, v.fa, v.fb)) {
-          avisar(avisos, 'MODULO_CRESCEU', 'Observação: |f| cresceu enquanto o intervalo encolhia. Isso não diagnostica polo nem descontinuidade.');
-        }
-        return { passos: r.passos, resultado, codigoErro: 'PARADA_INTERVALO',
-          erro: `Parada só pelo tamanho do intervalo, em c = ${fmt(c.c)}, com f(c) = ${fmt(c.fc)}. Vale como aproximação somente se f for contínua no intervalo. Não é certificação matemática de raiz.` };
+      if (r.motivo === 'TOLERANCIA' && pareceCrescimentoDeModulo(r.passos, v.fa, v.fb)) {
+        const u = r.passos[r.passos.length - 1];
+        avisar(avisos, 'MODULO_CRESCEU', `Possível descontinuidade (polo): |f(c)| cresceu enquanto o intervalo encolhia (f(c) = ${fmt(u.fc)} em c = ${String(+u.c.toPrecision(10)).replace('.', ',').replace('-', '−')}). Confira o gráfico: aí c pode não ser raiz.`);
       }
       if (!r.convergiu) {
         const msg = v.maxIter === 1
@@ -198,7 +194,7 @@
   }
 
   const MENSAGENS_NEWTON = {
-    DERIVADA_ZERO: (x) => `Derivada ≈ 0 em x = ${fmt(x)}: a tangente é horizontal e não cruza o eixo x. Tente outro x0.`,
+    DERIVADA_ZERO: (x) => `f′(x) = 0, ou f/f′ não é finito, em x = ${fmt(x)}: o passo de Newton não pode ser calculado. Tente outro x0.`,
     DIVERGENCIA: () => 'O método divergiu (|x| ou o erro cresceu demais). Tente um x0 mais perto da raiz.',
     OSCILACAO: () => 'Os valores de x entraram em ciclo (oscilação) e não convergem. Tente outro x0.',
     NAO_CONVERGIU: (x, maxIter) => (maxIter === 1
@@ -262,10 +258,10 @@
     }
     const fv = Number.isFinite(ult.xNovo) ? v.f(ult.xNovo) : ult.fx;
     if (fv === 0) {
-      return `${prefixo}Último x = ${fmt(ult.xNovo)}, f(x) = 0 em precisão dupla. O zero numérico foi observado; isso não é certificação matemática, e não se diz que o valor não é raiz.`;
+      return `${prefixo}Último x = ${fmt(ult.xNovo)}, f(x) = 0 em precisão dupla. Zero observado nessa aritmética, mas o critério de parada não foi atingido.`;
     }
     const dados = Number.isFinite(fv) ? `, f(x) = ${fmt(fv)}` : '';
-    return `${prefixo}Último x = ${fmt(ult.xNovo)}${dados}. Esse valor não é raiz. Aumente o máximo de iterações ou escolha outro x0.`;
+    return `${prefixo}Último x = ${fmt(ult.xNovo)}${dados}${Number.isFinite(fv) ? ' ≠ 0' : ''} e o critério de parada não foi atingido. Aumente o máximo de iterações ou escolha outro x0.`;
   }
 
   function executarNewton(p) {
@@ -281,7 +277,7 @@
         if (finito(fx)) { // f está definida; quem não é finita é f'
           const formula = v.tipoDerivada === 'numerica' ? '' : ` (f'(x) = ${v.derivadaTexto})`;
           erroDominio = `Em x${k} = ${F(x)}, f(x${k}) = ${F(fx)} está definida, mas f'(x${k}) não é finita${formula}; o passo de Newton não pode ser calculado. Tente um x0 mais perto da raiz.`;
-          codigo = 'DERIVADA_NAO_DEFINIDA';
+          codigo = 'DERIVADA_NAO_FINITA';
         } else {
           const causa = causaForaDoDominio(v.f.ast, x) || 'f não está definida';
           erroDominio = `x${k} = ${F(x)} está fora do domínio de f (${causa}); tente um x0 mais perto da raiz.`;
@@ -299,14 +295,14 @@
       }
       if (codigo === 'DERIVADA_NAO_FINITA' && !erroDominio) {
         const formula = v.tipoDerivada === 'numerica' ? '' : ` (f'(x) = ${v.derivadaTexto})`;
-        erroDominio = `Em x = ${fmt(r.raiz)}, f está definida, mas f' não é finita${formula}: a derivada explode, não é uma tangente horizontal. Tente um x0 mais perto da raiz.`;
+        erroDominio = `Em x = ${fmt(r.raiz)}, f está definida, mas f' não é finita${formula}; o passo de Newton não pode ser calculado. Tente um x0 mais perto da raiz.`;
       }
       // Salto grande: f'(x) pequena manda x para longe (|Δx| > 5·max(1, |x0|)). Avisa só o 1º.
       const escala = 5 * Math.max(1, Math.abs(v.x0));
       const salto = passos.find((s) => Math.abs(s.xNovo - s.x) > escala);
       if (salto) {
         const k = salto.k, F = Metodos.fmtBR;
-        avisar(avisos, 'SALTO_GRANDE', `Salto grande na iteração ${k + 1}: f'(x${k}) = ${F(salto.dfx)} é pequena, e x foi de ${F(salto.x)} para x${k + 1} = ${F(salto.xNovo)}.`);
+        avisar(avisos, 'SALTO_GRANDE', `Salto grande na iteração ${k + 1}: |Δx| = ${F(Math.abs(salto.xNovo - salto.x))} (f/f′ = ${F(salto.fx / salto.dfx)}); x foi de ${F(salto.x)} para x${k + 1} = ${F(salto.xNovo)}.`);
       }
       if (r.motivo === 'ZERO_PRECISAO_DUPLA') {
         avisar(avisos, 'ZERO_PRECISAO_DUPLA', `Zero observado em precisão dupla em x = ${fmt(r.raiz)}: f vale 0 nessa aritmética. É a parada do método, não uma certificação matemática de raiz.`);
@@ -316,7 +312,7 @@
       }
       avisarFallback(avisos, passos, v.tol, r.motivo);
       const resultado = camposDeParada(codigo || r.motivo, {
-        raiz: /^(DIVERGENCIA|FUNCAO_NAO_DEFINIDA|DERIVADA_NAO_DEFINIDA|DERIVADA_NAO_FINITA)$/.test(codigo) ? null : r.raiz,
+        raiz: /^(DIVERGENCIA|FUNCAO_NAO_DEFINIDA|DERIVADA_NAO_FINITA)$/.test(codigo) ? null : r.raiz,
         fRaiz: finito(r.raiz) ? v.f(r.raiz) : null, iteracoes: passos.length, convergiu: r.convergiu && !codigo,
         criterio: v.criterio, tol: v.tol, derivadaNumerica: v.tipoDerivada === 'numerica', tipoDerivada: v.tipoDerivada, derivadaTexto: v.derivadaTexto,
       });
@@ -483,7 +479,7 @@
     else if (!(condicao <= LIMIAR_COND)) {
       const F = Metodos.fmtBR;
       const perda = F(Math.min(1, condicao * Number.EPSILON));
-      avisar(avisos, 'MAL_CONDICIONADA', `Matriz mal condicionada: estimativa de cond₁(A) ≈ ${F(condicao)} > 1,000e+8. O erro relativo em x pode chegar a cond·ε ≈ ${perda}, mesmo com resíduo pequeno.`);
+      avisar(avisos, 'MAL_CONDICIONADA', `Matriz mal condicionada: cond₁ estimada ≈ ${F(condicao)} > 1,000e+8. O erro relativo em x pode chegar a cond·ε ≈ ${perda}, mesmo com resíduo pequeno.`);
     }
     return condicao;
   }
@@ -494,7 +490,7 @@
         return {
           passos: r.passos, resultado: { x: null, classificacao: 'fora_da_faixa', pivoteamento: v.pivoteamento },
           codigoErro: 'FORA_DA_FAIXA',
-          erro: 'O cálculo saiu da faixa dos números do computador (precisão dupla, até cerca de 1e308). x não é finito e o resíduo não seria confiável. Reescale A e b para uma faixa mais moderada.',
+          erro: 'Um valor intermediário saiu da faixa da precisão dupla; x não foi calculado. Reescale A e b para uma faixa mais moderada.',
         };
       }
       if (r.motivo === 'PIVO_ZERO_SEM_TROCA') {
@@ -512,10 +508,11 @@
           ? 'O sistema é impossível (não tem solução).'
           : cls.classificacao === 'quase_singular'
             ? 'A matriz é numericamente quase singular (pivô abaixo da tolerância relativa à escala da linha). Quase singularidade não prova que existam infinitas soluções.'
-            : 'O sistema tem infinitas soluções.';
+            : 'Compatível dentro da precisão numérica: infinitas soluções prováveis.';
+        if (cls.classificacao === 'quase_singular') avisar(avisos, 'QUASE_SINGULAR', `Matriz numericamente quase singular: nenhum pivô acima da tolerância numérica na coluna ${r.coluna + 1}.`);
         return {
           passos: r.passos, resultado: { x: null, classificacao: cls.classificacao, postoA: cls.postoA, postoAumentada: cls.postoAug },
-          erro: `Sistema singular: não há pivô não nulo na coluna ${r.coluna + 1}. ${texto}`,
+          erro: (cls.classificacao === 'quase_singular' ? `Nenhum pivô acima da tolerância numérica na coluna ${r.coluna + 1}. ` : `Sistema singular: não há pivô não nulo na coluna ${r.coluna + 1}. `) + texto,
           codigoErro: 'MATRIZ_SINGULAR',
         };
       }
@@ -542,7 +539,7 @@
         const pequeno = r.passos.find((s) => s.pivo && s.pivo.pequeno);
         if (pequeno) {
           const k = pequeno.pivo.coluna + 1;
-          const erroTxt = resultado.comparacao ? `; erro relativo de x em relação ao pivoteamento parcial: ${fmt(resultado.comparacao.semPivo.erro)}` : '';
+          const erroTxt = resultado.comparacao ? `; diferença relativa para a solução com pivoteamento parcial: ${fmt(resultado.comparacao.semPivo.erro)}` : '';
           avisar(avisos, 'PIVO_PEQUENO_SEM_TROCA', `Pivô pequeno sem troca (modo “nunca”): a${k}${k} = ${fmt(pequeno.pivo.valor)}, menor que 0,1·max|a_ik| da coluna${erroTxt}.`);
         }
       }

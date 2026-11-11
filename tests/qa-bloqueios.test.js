@@ -41,7 +41,7 @@ test('BUG-47 não inventa raiz zero nem múltipla', () => {
       if (r.codigoErro === 'NAO_CONVERGIU') {
         assert.match(r.erro, /Último x/);
         assert.match(r.erro, /f\(x\)/);
-        assert.match(r.erro, /não é raiz/);
+        assert.match(r.erro, /≠ 0 e o critério de parada não foi atingido/);
       }
     }
   }
@@ -61,29 +61,30 @@ test('BUG-48 derivada 1 com f grande não é horizontal', () => {
   assert.ok(Math.abs(r.resultado.raiz + 1e20) / 1e20 < 1e-6);
 });
 
-test('BUG-49 parada por intervalo não certifica raiz', () => {
+test('Bissecção: critério atingido mostra raiz aproximada (sem erro); polo só com evidência', () => {
   const casos = [
     { f: 'x/abs(x)', a: -0.2, b: 0.9, tol: 1e-8, maxIter: 80, criterio: 'absoluto' },
-    { f: '1/(x-0.3)', a: 0, b: 1, tol: 0.1, maxIter: 80, criterio: 'absoluto' },
     { f: '1/(x-0.3)', a: 0, b: 1, tol: 1e-8, maxIter: 80, criterio: 'absoluto' },
     { f: 'x/2-tan(x)', a: 1, b: 2, tol: 0.01, maxIter: 50 },
+    { f: 'exp(x)-3*x', a: 1, b: 2, tol: 1e-5, maxIter: 80 },
   ];
   for (const c of casos) {
     const r = E.bisseccao(c);
-    assert.equal(r.codigoErro, 'PARADA_INTERVALO', c.f);
-    assert.equal(r.resultado.convergiu, false);
-    assert.equal(r.resultado.raizCertificada, false);
-    assert.equal(r.resultado.zeroObservado, false);
-    assert.equal(r.resultado.hipotese, 'continuidade');
-    assert.match(r.erro, /contínua/);
-    assert.match(r.erro, /não é certificação matemática/i);
-    assert.doesNotMatch(r.erro, /polo|Descontinuidade/);
-    assert.doesNotMatch(r.erro, /Raiz ≈/);
+    assert.equal(r.codigoErro, null, c.f);
+    assert.equal(r.erro, null);
+    assert.equal(r.resultado.convergiu, true);
+    assert.equal(r.resultado.parada, 'tolerancia_passo');
   }
+  const polo = E.bisseccao(casos[1]);
+  assert.ok(polo.avisos.some((t) => /Possível descontinuidade \(polo\)/.test(t) && /c = 0,(2999|3000)\d{3}/.test(t)));
   const continua = E.bisseccao({ f: 'x^2-2', a: 1, b: 2, tol: 1e-8, maxIter: 80, criterio: 'absoluto' });
-  assert.equal(continua.codigoErro, 'PARADA_INTERVALO');
-  assert.equal(continua.resultado.convergiu, false);
+  assert.equal(continua.codigoErro, null);
+  assert.ok(!continua.avisos.some((t) => /polo/.test(t)));
   assert.ok(Math.abs(continua.resultado.raiz - Math.SQRT2) < 1e-7);
+  const rel = E.bisseccao({ f: 'x^2-2', a: 1, b: 2, tol: 1e-4, maxIter: 80, criterio: 'relativo' });
+  assert.equal(rel.passos[0].erroCriterio, null); // erro relativo só a partir de k = 2
+  const u = rel.passos[rel.passos.length - 1], p = rel.passos[rel.passos.length - 2];
+  assert.ok(Math.abs(u.erroCriterio - Math.abs(u.c - p.c) / Math.abs(u.c)) < 1e-15);
   const zero = E.bisseccao({ f: 'x', a: -1, b: 1, tol: 1e-8, maxIter: 10, criterio: 'absoluto' });
   assert.equal(zero.codigoErro, null);
   assert.equal(zero.resultado.convergiu, true);
@@ -107,8 +108,8 @@ test('BUG-50 ponto médio com extremos opostos enormes', () => {
 test('BUG-54 derivada infinita, domínio e faixa nas iterações', () => {
   const s = E.newton({ f: 'sqrt(x)-1', x0: 4, tol: 1e-8, maxIter: 10 });
   assert.equal(s.codigoErro, 'DERIVADA_NAO_FINITA');
-  assert.match(s.erro, /explode/);
-  assert.match(s.erro, /não é uma tangente horizontal/);
+  assert.match(s.erro, /não pode ser calculado/);
+  assert.match(s.erro, /não pode ser calculado/);
   const ln = E.newton({ f: 'x-x*ln(x)', x0: 0.5, tol: 1e-8, maxIter: 10 });
   assert.equal(ln.codigoErro, 'FUNCAO_NAO_DEFINIDA');
   assert.match(ln.erro, /domínio|negativ/);
@@ -228,22 +229,17 @@ test('checklist de status: zero, intervalo, observação, limite, derivada e dom
   function junta(res) { return (res.erro || '') + ' ' + (res.avisos || []).join(' '); }
 
   const intervalo = E.bisseccao({ f: 'x^2-2', a: 1, b: 2, tol: 1e-8, maxIter: 100, criterio: 'relativo' });
-  assert.equal(intervalo.resultado.parada, 'intervalo');
+  assert.equal(intervalo.resultado.parada, 'tolerancia_passo');
   assert.equal(intervalo.resultado.garantiaMatematica, false);
-  assert.deepEqual(titulos('bisseccao', intervalo), ['Parada pelo intervalo']);
-  const ativo = (AV.render('bisseccao', intervalo).match(/is-ativo[\s\S]*?<\/summary>/g) || []).join('\n');
-  assert.match(ativo, /Parada pelo intervalo/);
-  assert.doesNotMatch(ativo, /Descontinuidade|polo/i);
+  assert.deepEqual(titulos('bisseccao', intervalo), []);
 
   const cresceu = E.bisseccao({ f: '1/(x-0.3)', a: 0, b: 1, tol: 1e-8, maxIter: 80, criterio: 'absoluto' });
   const titsC = titulos('bisseccao', cresceu);
-  assert.ok(titsC.includes('Parada pelo intervalo'));
-  assert.ok(titsC.includes('Observação: |f| cresceu'));
-  assert.ok(!titsC.some((t) => /polo|Descontinuidade/i.test(t)));
+  assert.ok(titsC.includes('Possível descontinuidade (polo)'));
 
   const salto = E.bisseccao({ f: 'x/abs(x)', a: -0.2, b: 0.9, tol: 1e-8, maxIter: 80, criterio: 'absoluto' });
-  assert.equal(salto.resultado.parada, 'intervalo');
-  assert.equal(salto.resultado.convergiu, false);
+  assert.equal(salto.resultado.parada, 'tolerancia_passo');
+  assert.equal(salto.resultado.convergiu, true);
 
   function semCertificado(res) {
     assert.equal(res.resultado.zeroObservado, true);
@@ -280,7 +276,7 @@ test('checklist de status: zero, intervalo, observação, limite, derivada e dom
   const sem = E.newton({ f: 'x^2+1', x0: 1e6, tol: 1e-6, maxIter: 6, criterio: 'relativo' });
   assert.equal(sem.codigoErro, 'NAO_CONVERGIU');
   assert.equal(sem.resultado.parada, 'limite_iteracoes');
-  assert.match(sem.erro, /não é raiz/);
+  assert.match(sem.erro, /≠ 0 e o critério de parada não foi atingido/);
   assert.doesNotMatch(sem.erro, /precisão dupla/);
   assert.ok(titulos('newton', sem).includes('Máximo de iterações atingido'));
 
@@ -292,7 +288,7 @@ test('checklist de status: zero, intervalo, observação, limite, derivada e dom
   assert.match(faixa.erro, /faixa/);
   const der = E.newton({ f: 'sqrt(x)-1', x0: 4, tol: 1e-8, maxIter: 10 });
   assert.equal(der.resultado.parada, 'derivada');
-  assert.match(der.erro, /explode/);
+  assert.match(der.erro, /não pode ser calculado/);
 
   const normal = E.newton({ f: 'x^2-2', x0: 1, tol: 1e-8, maxIter: 20 });
   assert.equal(normal.codigoErro, null);

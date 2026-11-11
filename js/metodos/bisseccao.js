@@ -52,8 +52,8 @@
       });
       // f(c) = 0 na aritmética de 64 bits. É parada por observação, não prova de raiz.
       if (fc === 0) return fim(true, 'ZERO_PRECISAO_DUPLA');
-      // Parada só pelo tamanho do intervalo: não certifica raiz sem continuidade.
-      if (crit.parou) return fim(false, 'PARADA_INTERVALO');
+      // Erro abaixo da tolerância: c é a raiz aproximada.
+      if (crit.parou) return fim(true, 'TOLERANCIA');
       cAnt = c;
       // @etapa:atualizaIntervalo — fica a metade que contém a raiz
       if (manter === 'esquerda') {

@@ -118,7 +118,7 @@
   V.lerp = function (a, b, t) { return a + (b - a) * t; };
   /* Tabela sincronizada: linhas = array de arrays de HTML */
   /* indicador de criterioFallback (|x| ≈ 0 → o núcleo usou |Δx|): ícone + texto acessível */
-  V.FALLBACK_HTML = ' <span class="fallback" title="x perto de zero: usou o erro absoluto |Δx|"><span aria-hidden="true">⚠ |Δx|</span><span class="sr-only">aviso: x perto de zero, usou erro absoluto</span></span>';
+  V.FALLBACK_HTML = ' <span class="fallback" title="Erro relativo indefinido (xₖ ≈ 0): o valor é |xₖ − xₖ₋₁|, comparado com ε"><span aria-hidden="true">⚠ |Δx|</span><span class="sr-only">erro relativo indefinido; valor é a diferença absoluta entre iterados</span></span>';
   V.Tabela = function (tbody, aoClicar) {
     this.tbody = tbody;
     tbody.addEventListener('click', function (e) { var tr = e.target.closest('tr'); if (tr && tr.dataset.i) aoClicar(+tr.dataset.i); });

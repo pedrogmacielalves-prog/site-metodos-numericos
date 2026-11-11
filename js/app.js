@@ -12,13 +12,15 @@
   function tabelaSolucao(r) { var V = window.Visual, x = (r.resultado && r.resultado.x) || []; if (x.length <= 3) return '';
     return '<div class="solucao-tabela" tabindex="0" role="region" aria-label="Solução x"><table class="tabela tabela--solucao"><thead><tr><th scope="col">xᵢ</th><th scope="col">valor</th></tr></thead><tbody>' +
       x.map(function (v, k) { var t = V.fmtTab(v); if (/^−0(,0*)?$/.test(t)) t = t.slice(1); return '<tr><th scope="row">x' + (k + 1) + '</th><td title="' + V.completo(v) + '" aria-label="x' + (k + 1) + ' = ' + V.completo(v) + '">' + t + '</td></tr>'; }).join('') + '</tbody></table></div>'; }
+  /* notas discretas sob o resultado (não substituem o resultado) */
+  var NOTAS = { bisseccao: 'Nota: vale se f for contínua em [a, b]. Confira se o ε pedido está em % (multiplique o erro por 100) ou em decimal.', newton: 'Nota: confira se o ε pedido está em % (multiplique o erro por 100) ou em decimal.' };
   function mostrarMensagens(id, res, resumo) {
     var h = '';
     if (res.erro && id === 'newton' && res.codigoErro === 'OSCILACAO' && window.Visual.cicloNoLimite(res.passos)) {
       var u = res.passos[res.passos.length - 1];
-      h += toast('aviso', 'Parou no limite de precisão do computador (precisão dupla, ~16 dígitos): xₖ alterna entre dois números vizinhos que o computador não consegue aproximar mais, então o ' + ((res.criterio || 'relativo') === 'relativo' ? 'ε' : 'tol') + ' pedido não pôde ser alcançado. Raiz ≈ ' + window.Visual.oito(u.xNovo) + ' após ' + res.passos.length + ' iterações; este é o resultado mais preciso possível em precisão dupla.');
-    } else if (res.erro) h += toast(res.codigoErro === 'NAO_CONVERGIU' || res.codigoErro === 'PARADA_INTERVALO' ? 'aviso' : 'erro', res.erro);
-    else if (res.resultado) h += toast('sucesso', resumo(res), id === 'gauss' ? tabelaSolucao(res) : '');
+      h += toast('aviso', 'Parou no limite de precisão do computador (precisão dupla, ~16 dígitos): os iterados pararam de mudar em precisão dupla (xₖ alterna entre dois números vizinhos), então o ' + ((res.criterio || 'relativo') === 'relativo' ? 'ε' : 'tol') + ' pedido não pôde ser alcançado. Raiz ≈ ' + window.Visual.oito(u.xNovo) + ' após ' + res.passos.length + ' iterações; este é o resultado mais preciso possível em precisão dupla.');
+    } else if (res.erro) h += toast(res.codigoErro === 'NAO_CONVERGIU' ? 'aviso' : 'erro', res.erro);
+    else if (res.resultado) h += toast('sucesso', resumo(res), (id === 'gauss' ? tabelaSolucao(res) : '') + (NOTAS[id] ? '<p class="nota-resultado">' + NOTAS[id] + '</p>' : ''));
     (res.avisos || []).forEach(function (a) { h += toast('aviso', a); });
     if (id === 'gauss' && window.Visual.pivo) h = h.replace(/\[(!|i|⇅)\] /g, function (_, g) { return window.Visual.pivo.glifo({ '!': 'obrigatoria', i: 'recomendada', '⇅': 'classica' }[g]) + ' '; });
     $('#msg-' + id).innerHTML = h;
@@ -114,10 +116,9 @@
   function n6(v, d) { return v == null || !isFinite(v) ? '—' : String(+(+v).toPrecision(d || 10)); }
 
   var abas = {
-    bisseccao: montarAba('bisseccao', dados, function (r) { var n = r.passos.length, est = r.resultado.iteracoesEstimadas;
-      if (r.resultado.zeroObservado || r.resultado.parada === 'zero_precisao_dupla') return 'Zero observado em precisão dupla em x = ' + window.Visual.oito(r.resultado.raiz) + '. f vale 0 nessa aritmética. É a parada do método, não uma certificação matemática de raiz.';
-      if (r.resultado.motivo === 'PARADA_INTERVALO' || r.codigoErro === 'PARADA_INTERVALO') return r.erro || 'Parada só pelo intervalo, sob a hipótese de continuidade de f. Não diagnostica polo.';
-      return 'Raiz ≈ ' + window.Visual.oito(r.resultado.raiz) + ' após ' + plural(n, 'iteração', 'iterações') + (est ? ' (estimativa teórica: ' + est + ').' : '.') + ' Parou porque ' + motivoCrit('bisseccao', r) + '.' + limite('bisseccao', r); }),
+    bisseccao: montarAba('bisseccao', dados, function (r) { var n = r.passos.length, u = r.passos[n - 1], est = r.resultado.iteracoesEstimadas;
+      if (r.resultado.zeroObservado || r.resultado.parada === 'zero_precisao_dupla') return 'Raiz aproximada: c = ' + window.Visual.oito(r.resultado.raiz) + ' (f(c) = 0 em precisão dupla) após ' + plural(n, 'iteração', 'iterações') + '.';
+      return 'Raiz aproximada: c = ' + window.Visual.oito(r.resultado.raiz) + ' após ' + plural(n, 'iteração', 'iterações') + (est ? ' (estimativa teórica: ' + est + ').' : '.') + ' f(c) = ' + window.Visual.oito(r.resultado.fRaiz) + (u && isFinite(u.erroCriterio) ? '; erro = ' + window.Visual.oito(u.erroCriterio) : '') + '. Parou porque ' + motivoCrit('bisseccao', r) + '.' + limite('bisseccao', r); }),
     newton: montarAba('newton', dados, function (r) { var n = r.passos.length, u = r.passos[n - 1];
       if (r.resultado.zeroObservado || r.resultado.parada === 'zero_precisao_dupla') return 'Zero observado em precisão dupla em x = ' + window.Visual.oito(r.resultado.raiz) + '. f vale 0 nessa aritmética. É a parada do método, não uma certificação matemática de raiz.';
       var porPasso = r.resultado.motivo ? r.resultado.motivo !== 'ZERO_PRECISAO_DUPLA' : (u && isFinite(u.erro) && u.fx !== 0);
@@ -362,7 +363,7 @@
     formG.n.min = min; formG.n.max = max; formG.n.value = nAtual;
     $('#n-menos').disabled = nAtual <= min; $('#n-mais').disabled = nAtual >= max;
     var ajuda = $('#ajuda-n');
-    if (ajuda) ajuda.textContent = 'A é uma matriz n×n e b é um vetor n×1. n inteiro de ' + min + ' a ' + max + ' (limite prático nos ambientes testados). Até ' + GE.MAX_GRADE + ' a grade é editável; acima disso use Colar, Aleatório ou Exemplo e o mapa de cores.';
+    if (ajuda) ajuda.textContent = 'A é uma matriz n×n e b é um vetor n×1. Até n = ' + GE.MAX_GRADE + ' a grade é editável; acima disso use Colar, Aleatório ou Exemplo e o mapa de cores.';
   }
   var reducaoPendente = null;
   function textoCelula(v) { return v == null ? '' : String(v).trim(); }

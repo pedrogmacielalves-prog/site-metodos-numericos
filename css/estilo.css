@@ -223,7 +223,9 @@ pre.codigo .ln.ln-titulo { margin-top: var(--esp-3, 12px); border-top: 1px solid
 /* BUG-28: resultado desatualizado (entradas editadas depois do cálculo) */
 .desatualizado { margin: 0; font-size: var(--fs-sm); color: var(--cor-texto-suave); display: flex; gap: var(--esp-2); align-items: baseline; flex-wrap: wrap; }
 .desatualizado[hidden] { display: none; }
-.resultado-desatualizado { opacity: .55; transition: opacity var(--duracao-animacao); }
+/* sem opacidade: escurecer a coluna inteira parecia um bloqueio; o selo "Desatualizado" já avisa */
+.resultado-desatualizado { }
+.nota-resultado { margin: var(--esp-1) 0 0; font-size: var(--fs-xs); color: var(--cor-texto-suave); }
 
 /* Segmentado na coluna lateral: uma linha, colunas iguais (Designer) */
 .form-metodo .segmentado { display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; box-sizing: border-box; }

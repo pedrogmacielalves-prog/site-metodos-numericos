@@ -4,6 +4,15 @@ const assert = require('node:assert/strict');
 const { spawn } = require('child_process');
 const http = require('http');
 const fs = require('fs');
+const ESTILO = fs.readFileSync(require('path').join(__dirname, '..', 'css', 'estilo.css'), 'utf8');
+const APP = fs.readFileSync(require('path').join(__dirname, '..', 'js', 'app.js'), 'utf8');
+
+test('editar célula não escurece a coluna de resultados; ajuda de n não cita 2 a 800', () => {
+  const regra = (ESTILO.match(/\.resultado-desatualizado\s*\{[^}]*\}/) || [''])[0];
+  assert.doesNotMatch(regra, /opacity|filter/);
+  assert.doesNotMatch(APP, /n inteiro de/);
+  assert.match(APP, /Até n = ' \+ GE\.MAX_GRADE \+ ' a grade é editável/);
+});
 
 function get(url) {
   return new Promise((resolve, reject) => {
@@ -58,7 +67,7 @@ test('DOM: reduzir n pede confirmação e o resumo de erros foca a célula', { t
     }
     await send('Page.enable');
     await send('Runtime.enable');
-    const nav = send('Page.navigate', { url: 'file:///workspace/index.html' });
+    const nav = send('Page.navigate', { url: require('url').pathToFileURL(require('path').join(__dirname, '..', 'index.html')).href });
     await nav;
     for (let i = 0; i < 50; i++) {
       const pronto = await send('Runtime.evaluate', {
