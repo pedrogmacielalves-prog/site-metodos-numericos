@@ -54,3 +54,8 @@ test('UI: n ajustado tem aviso visível; Colar pausa o autoplay', () => {
   assert.match(APP, /id = 'aviso-n'/);
   assert.match(APP, /painelColar\.addEventListener\(ev, function \(\) \{ var pl = abas\.gauss\.player; if \(pl && pl\.timer\) pl\.pausar\(\)/);
 });
+
+test('sem lembrete de porcentagem; nota de continuidade mantida', () => {
+  assert.doesNotMatch(APP, /multiplique o erro por 100|está em %/);
+  assert.match(APP, /Nota: vale se f for contínua em \[a, b\]\./);
+});

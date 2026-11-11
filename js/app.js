@@ -13,9 +13,7 @@
     return '<div class="solucao-tabela" tabindex="0" role="region" aria-label="Solução x"><table class="tabela tabela--solucao"><thead><tr><th scope="col">xᵢ</th><th scope="col">valor</th></tr></thead><tbody>' +
       x.map(function (v, k) { var t = V.fmtTab(v); if (/^−0(,0*)?$/.test(t)) t = t.slice(1); return '<tr><th scope="row">x' + (k + 1) + '</th><td title="' + V.completo(v) + '" aria-label="x' + (k + 1) + ' = ' + V.completo(v) + '">' + t + '</td></tr>'; }).join('') + '</tbody></table></div>'; }
   /* notas discretas sob o resultado (não substituem o resultado) */
-  var PCT = ' Confira se o ε pedido está em % (multiplique o erro por 100) ou em decimal.';
-  function nota(id, res) { var R = res.resultado || {}, pct = (res.criterio || R.criterio || 'relativo') === 'relativo' && !R.zeroObservado ? PCT : '';
-    return id === 'bisseccao' ? 'Nota: vale se f for contínua em [a, b].' + pct : id === 'newton' && pct ? 'Nota:' + pct : ''; }
+  function nota(id) { return id === 'bisseccao' ? 'Nota: vale se f for contínua em [a, b].' : ''; }
   function mostrarMensagens(id, res, resumo) {
     var h = '';
     if (res.erro && id === 'newton' && res.codigoErro === 'OSCILACAO' && window.Visual.cicloNoLimite(res.passos)) {
