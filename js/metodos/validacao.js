@@ -157,9 +157,14 @@
    */
   // HEURÍSTICA (não detecta tudo): G = max(|f|) nos extremos do intervalo com troca de sinal.
   // Continua a bissecção além da tolerância (até 60 cortes, só para diagnóstico) e olha os
-  // últimos ≤ 30 cortes: f contínua (|f| ~ |x − r|^p, p ≥ 1/2) faz G cair pelo menos 2^(−cortes/4);
+  // últimos ≤ 30 cortes: f contínua (|f| ~ |x − r|^p com p > 1/4) faz G cair mais que 2^(−cortes/4);
   // salto ou polo deixam G parado ou crescendo. Ponto onde f não é finita só encerra o refino.
+  // Limites: contínuas com p ≤ 1/4 podem dar falso alarme; salto muito pequeno sob rampa forte
+  // (ex.: 1e−6·sinal(x − 0,3) + 1e6·(x − 0,3)) passa despercebido. Falha no refino → sem aviso.
   function pareceCrescimentoDeModulo(passos, fa0, fb0, f) {
+    try { return detectarQuebra(passos, fa0, fb0, f); } catch (e) { return false; }
+  }
+  function detectarQuebra(passos, fa0, fb0, f) {
     const G = [Math.max(Math.abs(fa0), Math.abs(fb0))];
     let a, b, fa, fb;
     for (const u of passos) {
