@@ -16,11 +16,17 @@
       { passos, raiz: x, convergiu, motivo }
     );
 
+    // Avalia f sem interromper o método: um erro na avaliação vira NaN.
+    const avaliar = (t) => {
+      try { return f(t); } catch (e) { return NaN; }
+    };
+    // f no ponto atual; depois de cada passo recebe f(xNovo), já calculado.
+    let fx = avaliar(x);
+
     // Divergência: x se afastou demais do chute inicial.
     const limite = 1e6 * Math.max(1, Math.abs(x0));
 
     for (let k = 0; k < maxIter; k++) {
-      const fx = f(x);
       // @etapa:avaliaDerivada — inclinação da tangente em x
       const dfx = df(x);
 
@@ -48,7 +54,7 @@
       const crit = Metodos.testeParada(criterio, xNovo, x, erro, tol);
       // O candidato recém-calculado é visto antes de esgotar o limite de passos.
       let fNovo = NaN;
-      if (Number.isFinite(xNovo)) { try { fNovo = f(xNovo); } catch (e) { fNovo = NaN; } }
+      if (Number.isFinite(xNovo)) fNovo = avaliar(xNovo);
       const zeroNovo = fNovo === 0;
       const parou = crit.parou || zeroNovo;
       const etapas = ['avaliaDerivada', 'passoNewton'];
@@ -66,6 +72,7 @@
       });
 
       x = xNovo;
+      fx = fNovo;
       if (!Number.isFinite(xNovo)) return fim(false, 'DIVERGENCIA');
       if (!Number.isFinite(fNovo)) return fim(false, 'FUNCAO_NAO_DEFINIDA');
       if (zeroNovo) return fim(true, 'ZERO_PRECISAO_DUPLA');

@@ -18,10 +18,16 @@
     let c = null;
     let cAnt = null; // ponto médio anterior (critério relativo)
 
+    // Raiz num extremo: f(a) ou f(b) já vale 0 em precisão dupla.
+    if (fa === 0 || fb === 0) {
+      c = fa === 0 ? a : b;
+      return fim(true, 'ZERO_PRECISAO_DUPLA');
+    }
+
     // Pré-condição: se f(a) e f(b) têm o mesmo sinal, não há
     // garantia de raiz em [a, b] e o método não se aplica.
     // Compara os sinais sem multiplicar: 1e−200 · 1e−200 vira 0.
-    if (fa !== 0 && fb !== 0 && (fa < 0) === (fb < 0)) return fim(false, 'SEM_TROCA_DE_SINAL');
+    if ((fa < 0) === (fb < 0)) return fim(false, 'SEM_TROCA_DE_SINAL');
 
     for (let k = 1; k <= maxIter; k++) {
       // @etapa:pontoMedio — estável nos dois sinais (b−a estoura se a e b são opostos e enormes)
@@ -38,7 +44,7 @@
       // @etapa:testeSinal — sinais opostos, sem multiplicar f(a)·f(c)
       let manter;
       if (fc === 0) manter = 'raiz';
-      else if (fa !== 0 && fc !== 0 && (fa < 0) !== (fc < 0)) manter = 'esquerda';
+      else if ((fa < 0) !== (fc < 0)) manter = 'esquerda';
       else manter = 'direita';
       // @etapa:criterioParada — raiz exata ou erro menor que tol
       const crit = Metodos.testeParada(criterio, c, cAnt, erro, tol);

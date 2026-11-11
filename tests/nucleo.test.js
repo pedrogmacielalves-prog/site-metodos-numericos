@@ -116,6 +116,25 @@ test('BUG bissecção: sinal sem produto, ponto médio estável', () => {
   assert.match(raiz.avisos.join(' '), /precisão dupla/);
 });
 
+test('bissecção: raiz exatamente num extremo é devolvida pelo núcleo', () => {
+  const r = M.bisseccao((x) => x, 0, 1, 1e-6, 50, 'absoluto');
+  assert.equal(r.motivo, 'ZERO_PRECISAO_DUPLA');
+  assert.equal(r.convergiu, true);
+  assert.equal(r.raiz, 0);
+  assert.equal(r.passos.length, 0);
+  const d = M.bisseccao((x) => x - 1, 0, 1, 1e-6, 50, 'relativo');
+  assert.equal(d.motivo, 'ZERO_PRECISAO_DUPLA');
+  assert.equal(d.raiz, 1);
+});
+
+test('Newton: f é avaliada uma vez por ponto', () => {
+  const pontos = [];
+  const r = M.newton((x) => { pontos.push(x); return x * x - 2; }, (x) => 2 * x, 3, 1e-10, 30, 'relativo');
+  assert.equal(r.motivo, 'TOLERANCIA');
+  assert.equal(new Set(pontos).size, pontos.length);
+  assert.equal(pontos.length, r.passos.length + 1);
+});
+
 test('BUG Newton: sem raiz falsa e derivada relativa', () => {
   const sem = E.newton({ f: 'x^2+1', x0: 100, tol: 1e-8, maxIter: 6 });
   assert.equal(sem.codigoErro, 'NAO_CONVERGIU');
