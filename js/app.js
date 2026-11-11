@@ -20,8 +20,10 @@
       var u = res.passos[res.passos.length - 1];
       h += toast('aviso', 'Parou no limite de precisão do computador (precisão dupla, ~16 dígitos): os iterados pararam de mudar em precisão dupla (xₖ alterna entre dois números vizinhos), então o ' + ((res.criterio || 'relativo') === 'relativo' ? 'ε' : 'tol') + ' pedido não pôde ser alcançado. Raiz ≈ ' + window.Visual.oito(u.xNovo) + ' após ' + res.passos.length + ' iterações; este é o resultado mais preciso possível em precisão dupla.');
     } else if (res.erro) h += toast(res.codigoErro === 'NAO_CONVERGIU' ? 'aviso' : 'erro', res.erro);
-    else if (res.resultado) h += toast('sucesso', resumo(res), (id === 'gauss' ? tabelaSolucao(res) : '') + (NOTAS[id] ? '<p class="nota-resultado">' + NOTAS[id] + '</p>' : ''));
-    (res.avisos || []).forEach(function (a) { h += toast('aviso', a); });
+    else if (res.resultado) h += toast('sucesso', resumo(res), (id === 'gauss' ? tabelaSolucao(res) : '') + (id === 'bisseccao' ? (res.avisos || []).filter(function (a, i) { return (res.codigosAviso || [])[i] === 'MODULO_CRESCEU'; }).map(function (a) { return '<p class="toast__texto"><strong>' + esc(a) + '</strong></p>'; }).join('') : '') + (NOTAS[id] ? '<p class="nota-resultado">' + NOTAS[id] + '</p>' : ''));
+    var poloB = id === 'bisseccao' && (res.codigosAviso || []).indexOf('MODULO_CRESCEU') >= 0;
+    if (poloB) h = h.replace('<span class="toast__icone" aria-hidden="true">✓</span>', '<span class="toast__icone" aria-hidden="true"></span>');
+    (res.avisos || []).forEach(function (a, i) { if (poloB && (res.codigosAviso || [])[i] === 'MODULO_CRESCEU') return; h += toast('aviso', a); });
     if (id === 'gauss' && window.Visual.pivo) h = h.replace(/\[(!|i|⇅)\] /g, function (_, g) { return window.Visual.pivo.glifo({ '!': 'obrigatoria', i: 'recomendada', '⇅': 'classica' }[g]) + ' '; });
     $('#msg-' + id).innerHTML = h;
   }
@@ -118,7 +120,8 @@
   var abas = {
     bisseccao: montarAba('bisseccao', dados, function (r) { var n = r.passos.length, u = r.passos[n - 1], est = r.resultado.iteracoesEstimadas;
       if (r.resultado.zeroObservado || r.resultado.parada === 'zero_precisao_dupla') return 'Raiz aproximada: c = ' + window.Visual.oito(r.resultado.raiz) + ' (f(c) = 0 em precisão dupla) após ' + plural(n, 'iteração', 'iterações') + '.';
-      return 'Raiz aproximada: c = ' + window.Visual.oito(r.resultado.raiz) + ' após ' + plural(n, 'iteração', 'iterações') + (est ? ' (estimativa teórica: ' + est + ').' : '.') + ' f(c) = ' + window.Visual.oito(r.resultado.fRaiz) + (u && isFinite(u.erroCriterio) ? '; erro = ' + window.Visual.oito(u.erroCriterio) : '') + '. Parou porque ' + motivoCrit('bisseccao', r) + '.' + limite('bisseccao', r); }),
+      var polo = (r.codigosAviso || []).indexOf('MODULO_CRESCEU') >= 0;
+      return (polo ? 'Ponto aproximado (possível polo): c = ' : 'Raiz aproximada: c = ') + window.Visual.oito(r.resultado.raiz) + ' após ' + plural(n, 'iteração', 'iterações') + (est ? ' (estimativa teórica: ' + est + ').' : '.') + ' f(c) = ' + window.Visual.oito(r.resultado.fRaiz) + (u && isFinite(u.erroCriterio) ? '; erro = ' + window.Visual.oito(u.erroCriterio) : '') + '. Parou porque ' + motivoCrit('bisseccao', r) + '.' + limite('bisseccao', r); }),
     newton: montarAba('newton', dados, function (r) { var n = r.passos.length, u = r.passos[n - 1];
       if (r.resultado.zeroObservado || r.resultado.parada === 'zero_precisao_dupla') return 'Zero observado em precisão dupla em x = ' + window.Visual.oito(r.resultado.raiz) + '. f vale 0 nessa aritmética. É a parada do método, não uma certificação matemática de raiz.';
       var porPasso = r.resultado.motivo ? r.resultado.motivo !== 'ZERO_PRECISAO_DUPLA' : (u && isFinite(u.erro) && u.fx !== 0);

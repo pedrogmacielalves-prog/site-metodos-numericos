@@ -43,7 +43,7 @@
           quando: '|f| aumentou enquanto o intervalo encolhia. A nota registra o crescimento; não classifica a função.',
           solucao: 'Olhe o gráfico de f. Não trate a observação como uma classificação da função.',
           codigos: ['MODULO_CRESCEU'],
-          mensagem: 'Possível descontinuidade (polo): |f(c)| cresceu enquanto o intervalo encolhia',
+          mensagem: 'Possível descontinuidade (polo): |f(c)| não diminuiu enquanto o intervalo encolhia',
         },
         {
           id: 'funcao-nao-definida',

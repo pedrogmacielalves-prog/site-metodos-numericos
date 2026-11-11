@@ -297,3 +297,16 @@ test('checklist de status: zero, intervalo, observação, limite, derivada e dom
   assert.equal(normal.resultado.raizCertificada, false);
   assert.ok(Math.abs(normal.resultado.raiz - Math.SQRT2) < 1e-6);
 });
+
+test('Bissecção: detector de polo pega casos do QA sem falso alarme', () => {
+  const B = (f, a, b, tol, criterio) => E.bisseccao({ f, a, b, tol, maxIter: 100, criterio });
+  const polo = (r) => r.codigosAviso.includes('MODULO_CRESCEU');
+  for (const [f, a, b, tol] of [['1/(x-0.3)', 0, 1, 0.1], ['1/(x-0.3)', 0, 1, 1e-8], ['x/abs(x)', -0.2, 0.9, 1e-8]]) {
+    const r = B(f, a, b, tol, 'absoluto');
+    assert.ok(polo(r), f + ' ' + tol); assert.equal(r.erro, null);
+  }
+  for (const [f, tol, c] of [['exp(x)-3*x', 1e-5, 'relativo'], ['exp(x)-3*x', 0.01, 'relativo'], ['x^2-2', 1e-8, 'absoluto'], ['x^2-2', 0.01, 'relativo'],
+    ['(x-1.7)+10*exp(-((x-1.25)/0.01)^2)', 1e-8, 'absoluto'], ['(x-1.51)+10*exp(-((x-1.5)/0.02)^2)', 1e-8, 'absoluto']]) {
+    assert.ok(!polo(B(f, 1, 2, tol, c)), f + ' ' + tol);
+  }
+});

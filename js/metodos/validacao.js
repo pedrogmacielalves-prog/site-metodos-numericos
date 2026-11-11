@@ -140,7 +140,7 @@
       }
       if (r.motivo === 'TOLERANCIA' && pareceCrescimentoDeModulo(r.passos, v.fa, v.fb)) {
         const u = r.passos[r.passos.length - 1];
-        avisar(avisos, 'MODULO_CRESCEU', `Possível descontinuidade (polo): |f(c)| cresceu enquanto o intervalo encolhia (f(c) = ${fmt(u.fc)} em c = ${String(+u.c.toPrecision(10)).replace('.', ',').replace('-', '−')}). Confira o gráfico: aí c pode não ser raiz.`);
+        avisar(avisos, 'MODULO_CRESCEU', `Possível descontinuidade (polo): |f(c)| não diminuiu enquanto o intervalo encolhia (f(c) = ${fmt(u.fc)} em c = ${String(+u.c.toPrecision(10)).replace('.', ',').replace('-', '−')}). Confira o gráfico: aí c pode não ser raiz.`);
       }
       if (!r.convergiu) {
         const msg = v.maxIter === 1
@@ -157,12 +157,12 @@
    * já é condicional à continuidade mesmo quando isto não dispara.
    */
   function pareceCrescimentoDeModulo(passos, fa0, fb0) {
-    if (passos.length < 6) return false;
-    const m = (lista) => lista.reduce((s, p) => s + Math.abs(p.fc), 0) / lista.length;
-    const fim = Math.abs(passos[passos.length - 1].fc);
-    return fim > 10 * Math.max(Math.abs(fa0), Math.abs(fb0)) &&
-      fim > 10 * Math.abs(passos[0].fc) && m(passos.slice(-3)) > m(passos.slice(0, 3));
+    // Função contínua: |f(c)| cai junto com o intervalo. Se, após ≥ 3 cortes, |f(c)| final
+    // ainda é ≥ max(|f(a)|, |f(b)|) iniciais, |f| não encolheu: sinal de polo/salto.
+    if (passos.length < 3) return false;
+    return Math.abs(passos[passos.length - 1].fc) >= Math.max(Math.abs(fa0), Math.abs(fb0));
   }
+
 
   // ------------------------------------------------------------------ Newton
   function validarNewton(p, avisos) {
